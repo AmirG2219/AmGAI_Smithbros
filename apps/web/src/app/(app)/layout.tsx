@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Image from "next/image";
 import { LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { getMe } from "@/lib/supabase/session";
 import { MobileNav, Nav } from "./nav";
 
 async function signOut() {
@@ -16,18 +17,8 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  // RLS only returns this row for an active dashboard user.
-  const { data: me } = await supabase
-    .from("app_users")
-    .select("display_name, role")
-    .eq("id", user.id)
-    .maybeSingle();
+  const me = await getMe();
+  if (!me) redirect("/login");
 
   if (!me || me.role !== "admin") {
     return (

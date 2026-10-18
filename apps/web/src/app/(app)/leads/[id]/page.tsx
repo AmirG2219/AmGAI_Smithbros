@@ -52,21 +52,22 @@ export default async function LeadDetail({
   const { notice } = await searchParams;
   const supabase = await createClient();
 
-  const { data: p } = await supabase
-    .from("projects")
-    .select(
-      "*, contacts(first_name, last_name, email, phone), estimates(revision_number, status, price_min, price_max, sent_at), appointments(id, status, start_at, end_at)",
-    )
-    .eq("id", id)
-    .maybeSingle();
+  const [{ data: p }, { data: events }] = await Promise.all([
+    supabase
+      .from("projects")
+      .select(
+        "*, contacts(first_name, last_name, email, phone), estimates(revision_number, status, price_min, price_max, sent_at), appointments(id, status, start_at, end_at)",
+      )
+      .eq("id", id)
+      .maybeSingle(),
+    supabase
+      .from("events")
+      .select("id, summary, created_at")
+      .eq("project_id", id)
+      .order("created_at", { ascending: false })
+      .limit(50),
+  ]);
   if (!p) notFound();
-
-  const { data: events } = await supabase
-    .from("events")
-    .select("id, summary, created_at")
-    .eq("project_id", id)
-    .order("created_at", { ascending: false })
-    .limit(50);
 
   const c = Array.isArray(p.contacts) ? p.contacts[0] : p.contacts;
   const est = [...(p.estimates ?? [])]
@@ -149,7 +150,11 @@ export default async function LeadDetail({
           </Card>
 
           <Card className="p-5">
-            <p className="eyebrow mb-3">Consultation</p>
+            <p className="eyebrow mb-1">Consultation</p>
+            <p className="mb-3 text-xs text-muted">
+              The free visit to see the space and give an accurate quote. Book it here for the customer and they get
+              a confirmation email. Bookings they make themselves through the calendar link will appear here too.
+            </p>
             {upcoming ? (
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <p className="font-serif text-2xl">{when(upcoming.start_at)}</p>

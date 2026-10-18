@@ -1,19 +1,10 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getMe } from "@/lib/supabase/session";
 
 // Server actions use the full-access client, so every one must first confirm the caller is an active admin.
-// The select below runs as the signed-in user, and RLS only returns their own row if they are active.
+// getMe() runs as the signed-in user, and the database only returns the row for an active user.
 export async function requireAdmin() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-  const { data: me } = await supabase
-    .from("app_users")
-    .select("id, display_name, role")
-    .eq("id", user.id)
-    .maybeSingle();
+  const me = await getMe();
   if (!me || me.role !== "admin") redirect("/login");
   return me as { id: string; display_name: string; role: "admin" };
 }

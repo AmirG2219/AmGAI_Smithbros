@@ -39,18 +39,34 @@ export function Nav({ position }: { position: "main" | "bottom" }) {
   const isActive = useActive();
   return (
     <nav className="flex flex-col gap-1">
-      {(position === "main" ? main : bottom).map((i) => (
-        <Link
-          key={i.href}
-          href={i.href}
-          className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition ${
-            isActive(i) ? "bg-bronze/20 text-gold" : "text-cream/60 hover:bg-white/5 hover:text-cream"
-          }`}
-        >
-          <i.Icon size={18} strokeWidth={1.6} />
-          {i.label}
-        </Link>
-      ))}
+      {(position === "main" ? main : bottom).map((i) => {
+        const active = isActive(i);
+        return (
+          <Link
+            key={i.href}
+            href={i.href}
+            className={`group relative flex items-center gap-3 overflow-hidden rounded-xl px-3 py-2.5 text-sm transition-all duration-200 ease-out ${
+              active
+                ? "bg-bronze/20 text-gold"
+                : "text-cream/60 hover:translate-x-0.5 hover:bg-white/[0.06] hover:text-cream"
+            }`}
+          >
+            {/* gold accent bar: always on for the current page, slides in on hover for the others */}
+            <span
+              aria-hidden
+              className={`absolute inset-y-2 left-0 w-[3px] origin-center rounded-r bg-gold transition-transform duration-200 ease-out ${
+                active ? "scale-y-100" : "scale-y-0 group-hover:scale-y-100"
+              }`}
+            />
+            <i.Icon
+              size={18}
+              strokeWidth={1.6}
+              className={`transition-all duration-200 ease-out ${active ? "" : "group-hover:scale-110 group-hover:text-gold"}`}
+            />
+            <span className="transition-colors duration-200">{i.label}</span>
+          </Link>
+        );
+      })}
     </nav>
   );
 }
@@ -88,7 +104,7 @@ export function MobileNav() {
             key={i.href}
             href={i.href}
             onClick={() => setOpen(false)}
-            className={`flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] ${
+            className={`flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] transition-colors duration-150 active:bg-white/5 ${
               isActive(i) ? "text-gold" : "text-cream/60"
             }`}
           >

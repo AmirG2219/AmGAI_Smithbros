@@ -1,6 +1,7 @@
 import { CalendarCheck, Flame, Inbox, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { getMe } from "@/lib/supabase/session";
 import { LEAD_COLUMNS, LeadsTable, type LeadRow } from "./leads-table";
 import { Card, PageHeader, greeting } from "./ui";
 
@@ -26,7 +27,7 @@ export default async function Overview() {
       .select(LEAD_COLUMNS)
       .order("created_at", { ascending: false })
       .limit(5),
-    supabase.from("app_users").select("display_name").maybeSingle(),
+    getMe(),
   ]);
 
   const tiles = [
@@ -39,7 +40,7 @@ export default async function Overview() {
   return (
     <div>
       <PageHeader
-        eyebrow={greeting(me.data?.display_name ?? "there")}
+        eyebrow={greeting(me?.display_name ?? "there")}
         title="Command Overview"
       />
       <div className="mb-8 grid grid-cols-2 gap-3 sm:gap-5 xl:grid-cols-4">

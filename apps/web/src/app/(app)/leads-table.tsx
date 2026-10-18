@@ -107,7 +107,7 @@ export function LeadsTable({ leads }: { leads: LeadRow[] }) {
             {leads.map((l) => {
               const c = contactOf(l);
               return (
-                <tr key={l.id} className="border-b border-line last:border-0">
+                <tr key={l.id} className="border-b border-line transition-colors duration-150 last:border-0 hover:bg-cream/60">
                   <td className={td}>
                     <Link href={`/leads/${l.id}`} className="font-medium hover:text-bronze">
                       {c?.first_name} {c?.last_name}
