@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { sendRecordedEmail } from "@/lib/email/record";
 import { emailEnabled, sendEmail } from "@/lib/email/resend";
 import { customerEstimateEmail, staffAlertEmail } from "@/lib/email/templates";
 import type { Inquiry } from "./inquiry";
@@ -18,15 +19,6 @@ export type NotifyContext = {
 };
 
 const appUrl = () => (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
-
-// Mirrors the database's demo-mode send guard so we skip cleanly instead of creating a message
-// that can never be delivered. The database remains the final authority.
-async function allowedByDemoMode(db: SupabaseClient, email: string) {
-  const { data } = await db.from("settings").select("value").eq("key", "demo_mode").maybeSingle();
-  if (!data) return false; // no demo_mode row: the database refuses all delivery
-  const v = data.value as { enabled: boolean; recipient_allowlist: string[] };
-  return !v.enabled || v.recipient_allowlist.includes(email.trim().toLowerCase());
-}
 
 export async function notifyNewLead(ctx: NotifyContext) {
   if (!emailEnabled()) {
@@ -90,14 +82,6 @@ async function customerEstimate({ db, projectId, q, estimate }: NotifyContext) {
       source: "email",
     });
 
-  if (!(await allowedByDemoMode(db, q.email))) {
-    await event(
-      "estimate.send_skipped",
-      "Estimate not emailed: recipient is not on the demo-mode allowlist",
-    );
-    return;
-  }
-
   // draft -> approved (rule-based automatic approval; no human approver)
   const approve = await db
     .from("estimates")
@@ -106,90 +90,35 @@ async function customerEstimate({ db, projectId, q, estimate }: NotifyContext) {
     .eq("status", "draft");
   if (approve.error) throw approve.error;
 
-  const mail = customerEstimateEmail({
-    firstName: q.first_name,
-    projectType: q.project_type,
-    material: q.material,
-    squareFootage: q.square_footage,
-    min: estimate.min,
-    max: estimate.max,
-    isSample: estimate.isSample,
-    bookingUrl: process.env.CALENDLY_URL || null,
-  });
-
-  // Record the conversation, the immutable message, and the delivery attempt before sending.
-  const conv = await db
-    .from("conversations")
-    .insert({
-      contact_id: contactId,
-      project_id: projectId,
-      channel: "email",
-      type: "service",
-      subject: mail.subject,
-    })
-    .select("id")
-    .single();
-  if (conv.error) throw conv.error;
-
-  const msg = await db
-    .from("messages")
-    .insert({
-      conversation_id: conv.data.id,
-      direction: "outbound",
-      channel: "email",
-      sender_address: (process.env.EMAIL_FROM ?? "").replace(/.*<(.+)>.*/, "$1"),
-      recipient_address: q.email.trim().toLowerCase(),
-      subject: mail.subject,
-      body_text: mail.text,
-      body_html: mail.html,
-    })
-    .select("id")
-    .single();
-  if (msg.error) throw msg.error;
-
-  const delivery = await db
-    .from("message_deliveries")
-    .insert({
-      message_id: msg.data.id,
-      attempt_number: 1,
-      provider: "resend",
-      status: "queued",
-      idempotency_key: `estimate-email:${estimate.id}:1`,
-    })
-    .select("id")
-    .single();
-  if (delivery.error) throw delivery.error;
-
-  const sent = await sendEmail({
-    to: [q.email.trim().toLowerCase()],
-    ...mail,
+  const result = await sendRecordedEmail({
+    db,
+    contactId,
+    projectId,
+    to: q.email,
+    mail: customerEstimateEmail({
+      firstName: q.first_name,
+      projectType: q.project_type,
+      material: q.material,
+      squareFootage: q.square_footage,
+      min: estimate.min,
+      max: estimate.max,
+      isSample: estimate.isSample,
+      bookingUrl: process.env.CALENDLY_URL || null,
+    }),
     idempotencyKey: `estimate-email:${estimate.id}:1`,
   });
 
-  const now = new Date().toISOString();
-  if (!sent.ok) {
-    await db
-      .from("message_deliveries")
-      .update({
-        status: "failed",
-        failed_at: now,
-        error_code: sent.code,
-        error_summary: sent.summary,
-      })
-      .eq("id", delivery.data.id);
-    await event("estimate.send_failed", "Estimate email could not be sent", { code: sent.code });
+  if (result.status === "skipped") {
+    await event("estimate.send_skipped", `Estimate not emailed: ${result.reason}`);
+    return;
+  }
+  if (result.status === "failed") {
+    await event("estimate.send_failed", "Estimate email could not be sent", { code: result.code });
     return;
   }
 
-  await db
-    .from("message_deliveries")
-    .update({ status: "submitted", accepted_at: now, provider_message_id: sent.providerId })
-    .eq("id", delivery.data.id);
-  await db
-    .from("messages")
-    .update({ provider: "resend", provider_message_id: sent.providerId })
-    .eq("id", msg.data.id);
   // sent_at means "accepted by the email provider", not "delivered".
+  const now = new Date().toISOString();
   await db.from("estimates").update({ status: "sent", sent_at: now }).eq("id", estimate.id);
   await db.from("projects").update({ stage: "estimate_sent" }).eq("id", projectId);
   await event("estimate.sent", "Ballpark estimate emailed to the customer", {

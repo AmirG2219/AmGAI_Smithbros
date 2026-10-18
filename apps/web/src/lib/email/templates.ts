@@ -95,3 +95,30 @@ ${rows.map(([k, v]) => `<tr><td style="padding:6px 0;color:#8a7b6c;width:90px;ve
   const text = `New lead received\n\n${rows.map(([k, v]) => `${k}: ${v}`).join("\n")}\n\nDashboard: ${i.dashboardUrl}`;
   return { subject, html, text };
 }
+
+export function consultationConfirmationEmail(i: {
+  firstName: string;
+  startAt: Date;
+  endAt: Date;
+  timeZone: string;
+}) {
+  const day = i.startAt.toLocaleDateString("en-CA", {
+    timeZone: i.timeZone,
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+  const time = (d: Date) =>
+    d.toLocaleTimeString("en-CA", { timeZone: i.timeZone, hour: "numeric", minute: "2-digit" });
+  const when = `${day}, ${time(i.startAt)} – ${time(i.endAt)} (${i.timeZone.split("/").pop()?.replace("_", " ")} time)`;
+  const subject = "Your Smith Bros Floors consultation is confirmed";
+  const html = shell(`
+<p>Hi ${esc(i.firstName)},</p>
+<p>Your consultation with Smith Bros Floors is confirmed:</p>
+<p style="font-size:18px;margin:16px 0"><b>${esc(when)}</b></p>
+<p>We&#39;ll look at the space, talk through your options and give you an accurate quote. If you need to change the time, just reply to this email.</p>
+<p style="color:#8a7b6c;font-size:13px">Smith Bros Floors</p>`);
+  const text = `Hi ${i.firstName},\n\nYour consultation with Smith Bros Floors is confirmed:\n${when}\n\nWe'll look at the space, talk through your options and give you an accurate quote. If you need to change the time, just reply to this email.\n\nSmith Bros Floors`;
+  return { subject, html, text };
+}

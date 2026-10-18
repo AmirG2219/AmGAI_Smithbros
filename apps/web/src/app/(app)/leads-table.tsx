@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Card, Pill, td, th } from "./ui";
 
 type Contact = { first_name: string; last_name: string | null; email: string | null };
@@ -71,9 +72,9 @@ export function LeadsTable({ leads }: { leads: LeadRow[] }) {
             <Card key={l.id} className="p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="truncate font-medium">
+                  <Link href={`/leads/${l.id}`} className="block truncate font-medium hover:text-bronze">
                     {c?.first_name} {c?.last_name}
-                  </p>
+                  </Link>
                   <p className="truncate text-xs text-muted">{c?.email}</p>
                 </div>
                 <Rating l={l} />
@@ -108,9 +109,9 @@ export function LeadsTable({ leads }: { leads: LeadRow[] }) {
               return (
                 <tr key={l.id} className="border-b border-line last:border-0">
                   <td className={td}>
-                    <div className="font-medium">
+                    <Link href={`/leads/${l.id}`} className="font-medium hover:text-bronze">
                       {c?.first_name} {c?.last_name}
-                    </div>
+                    </Link>
                     <div className="text-xs text-muted">{c?.email}</div>
                   </td>
                   <td className={`${td} capitalize`}>
