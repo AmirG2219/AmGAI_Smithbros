@@ -38,7 +38,7 @@ export default async function Campaigns() {
           ))}
         </ol>
         <p className="mt-4 text-xs text-muted">
-          Permission is recorded per person on the Contacts page. Anyone without it, or who has unsubscribed, is
+          Anyone who has not agreed to marketing email, or who has unsubscribed, is
           never emailed, even if they match the audience.
         </p>
       </Card>

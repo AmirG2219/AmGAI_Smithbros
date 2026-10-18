@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
+import { MANUAL_SOURCES } from "@/lib/contacts/sources";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const text = (f: FormData, k: string, max: number) => {
@@ -21,7 +22,7 @@ export async function createContact(formData: FormData) {
   const db = createAdminClient();
   if (email) {
     const { data: existing } = await db.from("contacts").select("id").eq("email_normalized", email).maybeSingle();
-    if (existing) return fail("A contact with that email address already exists.");
+    if (existing) return fail("A client with that email address already exists.");
   }
 
   const { error } = await db.from("contacts").insert({
@@ -29,11 +30,11 @@ export async function createContact(formData: FormData) {
     last_name: text(formData, "last_name", 100),
     email,
     phone: text(formData, "phone", 40),
-    source: "manual",
+    source: (MANUAL_SOURCES as readonly string[]).includes(String(formData.get("source"))) ? String(formData.get("source")) : "manual",
   });
   if (error) {
     console.error("[contacts] create failed:", error);
-    return fail("Could not add the contact. Please try again.");
+    return fail("Could not add the client. Please try again.");
   }
   redirect("/contacts?notice=added");
 }

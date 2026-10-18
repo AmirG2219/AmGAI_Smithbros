@@ -1,116 +1,96 @@
-import { consentByAddress } from "@/lib/campaigns/audience";
 import Link from "next/link";
 import { Plus } from "lucide-react";
+import { SOURCE_LABELS, sourceLabel } from "@/lib/contacts/sources";
 import { createClient } from "@/lib/supabase/server";
 import { Card, PageHeader, Pill, td, th } from "../ui";
-import { recordConsent } from "./actions";
 
-type Status = "consent" | "unsubscribed" | "none";
+const date = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" });
 
-const input = "w-full rounded-lg border border-line bg-white px-2 py-1.5 text-sm outline-none focus:border-bronze";
-
-function Marketing({ id, status, hasEmail }: { id: string; status: Status; hasEmail: boolean }) {
-  if (!hasEmail) return <span className="text-muted">No email</span>;
-  const grant = recordConsent.bind(null, id);
-  return (
-    <div>
-      {status === "consent" && <Pill kind="warm">Consent</Pill>}
-      {status === "unsubscribed" && <Pill kind="cold">Unsubscribed</Pill>}
-      {status === "none" && <span className="text-xs text-muted">No consent</span>}
-      {status !== "unsubscribed" && (
-        <details className="mt-1">
-          <summary className="cursor-pointer text-xs text-bronze">
-            {status === "consent" ? "Manage" : "Record consent"}
-          </summary>
-          <form action={grant} className="mt-2 grid gap-2 rounded-lg border border-line bg-white p-3">
-            <input type="hidden" name="action" value="grant" />
-            <select name="legal_basis" className={input} defaultValue="express" aria-label="Basis">
-              <option value="express">Express (they asked or agreed)</option>
-              <option value="implied">Implied (existing customer)</option>
-              <option value="other_verified">Other, verified</option>
-            </select>
-            <input name="source" required placeholder="How and when? e.g. signed contract Oct 2026" className={input} />
-            <button className="rounded-lg bg-walnut px-3 py-1.5 text-xs font-medium text-cream hover:bg-bronze">
-              Save consent
-            </button>
-          </form>
-          {status === "consent" && (
-            <form action={grant} className="mt-2">
-              <input type="hidden" name="action" value="withdraw" />
-              <input type="hidden" name="source" value="Withdrawn by staff in dashboard" />
-              <button className="text-xs text-muted underline">Withdraw consent</button>
-            </form>
-          )}
-        </details>
-      )}
-    </div>
-  );
-}
-
-export default async function Contacts({ searchParams }: { searchParams: Promise<{ notice?: string }> }) {
-  const { notice } = await searchParams;
+export default async function Clients({
+  searchParams,
+}: {
+  searchParams: Promise<{ notice?: string; q?: string; source?: string }>;
+}) {
+  const { notice, q, source } = await searchParams;
   const supabase = await createClient();
-  const { data: contacts, error } = await supabase
+
+  const term = (q ?? "").replace(/[%,()*\\]/g, " ").trim().slice(0, 60);
+  const sourceFilter = source && /^[a-z_]{1,30}$/.test(source) ? source : "";
+
+  let query = supabase
     .from("contacts")
-    .select("id, first_name, last_name, email, email_normalized, phone, created_at")
-    .order("created_at", { ascending: false })
-    .limit(200);
+    .select("id, first_name, last_name, email, phone, source, created_at, projects(id)", { count: "exact" });
+  if (sourceFilter) query = query.eq("source", sourceFilter);
+  if (term)
+    query = query.or(`first_name.ilike.%${term}%,last_name.ilike.%${term}%,email.ilike.%${term}%,phone.ilike.%${term}%`);
+  const { data: contacts, count, error } = await query.order("created_at", { ascending: false }).limit(200);
   const rows = contacts ?? [];
 
-  // Current marketing status per address, derived from the evidence log (same rule the sender uses).
-  const emails = rows.map((c) => c.email_normalized).filter(Boolean) as string[];
-  const [{ data: ev }, { data: sup }] = emails.length
-    ? await Promise.all([
-        supabase
-          .from("consent_events")
-          .select("address_normalized, event_type, valid_until")
-          .eq("channel", "email")
-          .eq("purpose", "marketing")
-          .in("address_normalized", emails)
-          .in("event_type", ["granted", "withdrawn"])
-          .order("occurred_at", { ascending: false }),
-        supabase
-          .from("suppressions")
-          .select("address_normalized")
-          .eq("channel", "email")
-          .is("cleared_at", null)
-          .in("scope", ["marketing", "all_outbound"])
-          .in("address_normalized", emails),
-      ])
-    : [{ data: [] }, { data: [] }];
-
-  const granted = consentByAddress(ev ?? []);
-  const blocked = new Set((sup ?? []).map((s) => s.address_normalized));
-  const statusOf = (email: string | null): Status =>
-    !email ? "none" : blocked.has(email) ? "unsubscribed" : granted.get(email) ? "consent" : "none";
+  // Offer the sources that actually exist, so the filter never lists an empty choice.
+  const { data: used } = await supabase.from("contacts").select("source").limit(2000);
+  const sources = [...new Set((used ?? []).map((r) => r.source).filter(Boolean))] as string[];
+  const filtered = !!(term || sourceFilter);
 
   return (
     <div>
-      <PageHeader eyebrow="Reference" title="Contacts">
+      <PageHeader eyebrow="Reference" title="Clients">
         <Link
           href="/contacts/new"
           className="inline-flex items-center gap-2 rounded-lg bg-walnut px-4 py-2.5 text-sm font-medium text-cream hover:bg-bronze"
         >
-          <Plus size={16} /> Add contact
+          <Plus size={16} /> Add client
         </Link>
       </PageHeader>
       {notice === "added" && (
-        <p className="mb-5 rounded-xl border border-gold/40 bg-gold/10 px-4 py-3 text-sm">Contact added.</p>
+        <p className="mb-5 rounded-xl border border-gold/40 bg-gold/10 px-4 py-3 text-sm">Client added.</p>
       )}
-      {error && <p className="mb-4 text-red-700">Could not load contacts.</p>}
+      {error && <p className="mb-4 text-red-700">Could not load clients.</p>}
+
+      <form className="mb-5 flex flex-wrap gap-2">
+        <input
+          name="q"
+          defaultValue={term}
+          placeholder="Search name, email or phone"
+          className="min-w-0 flex-1 rounded-lg border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-bronze sm:max-w-xs"
+        />
+        <select name="source" defaultValue={sourceFilter} className="rounded-lg border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-bronze">
+          <option value="">All sources</option>
+          {sources.map((s) => (
+            <option key={s} value={s}>
+              {SOURCE_LABELS[s] ?? sourceLabel(s)}
+            </option>
+          ))}
+        </select>
+        <button className="rounded-lg border border-walnut px-4 py-2.5 text-sm font-medium hover:bg-walnut hover:text-cream">Search</button>
+        {filtered && (
+          <Link href="/contacts" className="self-center text-sm text-bronze hover:text-walnut">
+            Clear
+          </Link>
+        )}
+      </form>
+      <p className="mb-3 text-sm text-muted">
+        {count ?? rows.length} client{(count ?? rows.length) === 1 ? "" : "s"}
+        {filtered ? " match" : ""}
+        {(count ?? 0) > rows.length && `, showing the latest ${rows.length}`}
+      </p>
 
       <div className="flex flex-col gap-3 md:hidden">
         {rows.map((c) => (
           <Card key={c.id} className="p-4">
-            <p className="font-medium">
-              {c.first_name} {c.last_name}
-            </p>
+            <div className="flex items-start justify-between gap-3">
+              <p className="font-medium">
+                {c.first_name} {c.last_name}
+              </p>
+              <Pill kind="review">{sourceLabel(c.source)}</Pill>
+            </div>
             <p className="text-sm text-muted">{c.email ?? "—"}</p>
-            <p className="mb-3 text-sm text-muted">{c.phone ?? "—"}</p>
-            <Marketing id={c.id} status={statusOf(c.email_normalized)} hasEmail={!!c.email} />
+            <p className="text-sm text-muted">{c.phone ?? "—"}</p>
+            <p className="mt-1 text-xs text-muted">Added {date(c.created_at)}</p>
           </Card>
         ))}
-        {rows.length === 0 && <Card className="px-6 py-10 text-center text-sm text-muted">No contacts yet.</Card>}
+        {rows.length === 0 && (
+          <Card className="px-6 py-10 text-center text-sm text-muted">{filtered ? "No clients match." : "No clients yet."}</Card>
+        )}
       </div>
 
       <Card className="hidden overflow-x-auto md:block">
@@ -120,30 +100,30 @@ export default async function Contacts({ searchParams }: { searchParams: Promise
               <th className={th}>Name</th>
               <th className={th}>Email</th>
               <th className={th}>Phone</th>
-              <th className={th}>Marketing email</th>
+              <th className={th}>Came from</th>
+              <th className={th}>Jobs</th>
               <th className={th}>Added</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((c) => (
-              <tr key={c.id} className="border-b border-line align-top last:border-0">
+              <tr key={c.id} className="border-b border-line last:border-0">
                 <td className={`${td} font-medium`}>
                   {c.first_name} {c.last_name}
                 </td>
                 <td className={`${td} text-muted`}>{c.email ?? "—"}</td>
                 <td className={`${td} text-muted`}>{c.phone ?? "—"}</td>
                 <td className={td}>
-                  <Marketing id={c.id} status={statusOf(c.email_normalized)} hasEmail={!!c.email} />
+                  <Pill kind="review">{sourceLabel(c.source)}</Pill>
                 </td>
-                <td className={`${td} text-muted`}>
-                  {new Date(c.created_at).toLocaleDateString("en-CA", { month: "short", day: "numeric" })}
-                </td>
+                <td className={`${td} text-muted`}>{c.projects?.length ?? 0}</td>
+                <td className={`${td} text-muted`}>{date(c.created_at)}</td>
               </tr>
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-6 py-10 text-center text-muted">
-                  No contacts yet.
+                <td colSpan={6} className="px-6 py-10 text-center text-muted">
+                  {filtered ? "No clients match." : "No clients yet."}
                 </td>
               </tr>
             )}

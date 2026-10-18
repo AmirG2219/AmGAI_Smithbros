@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { MANUAL_SOURCES, SOURCE_LABELS } from "@/lib/contacts/sources";
 import { Card, PageHeader } from "../../ui";
 import { createContact } from "./actions";
 
@@ -11,9 +12,9 @@ export default async function NewContact({ searchParams }: { searchParams: Promi
   return (
     <div>
       <Link href="/contacts" className="mb-4 inline-flex items-center gap-1 text-sm text-muted hover:text-walnut">
-        <ArrowLeft size={14} /> Contacts
+        <ArrowLeft size={14} /> Clients
       </Link>
-      <PageHeader eyebrow="Contacts" title="Add contact" />
+      <PageHeader eyebrow="Clients" title="Add client" />
       {error && (
         <p className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</p>
       )}
@@ -35,13 +36,19 @@ export default async function NewContact({ searchParams }: { searchParams: Promi
             <label className={label} htmlFor="phone">Phone</label>
             <input id="phone" name="phone" type="tel" className={input} />
           </div>
-          <p className="text-xs text-muted sm:col-span-2">
-            Adding a contact does not give permission to send them marketing email. Record that on the Contacts
-            list once you have their consent.
-          </p>
+          <div className="sm:col-span-2">
+            <label className={label} htmlFor="source">How did they come to us?</label>
+            <select id="source" name="source" defaultValue="manual" className={input}>
+              {MANUAL_SOURCES.map((v) => (
+                <option key={v} value={v}>
+                  {SOURCE_LABELS[v]}
+                </option>
+              ))}
+            </select>
+          </div>
         </Card>
         <button className="mt-5 rounded-lg bg-walnut px-6 py-3 text-sm font-medium text-cream hover:bg-bronze">
-          Add contact
+          Add client
         </button>
       </form>
     </div>

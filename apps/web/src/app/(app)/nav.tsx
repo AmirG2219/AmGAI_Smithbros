@@ -22,7 +22,7 @@ const main: Item[] = [
   { href: "/campaigns", label: "Marketing Emails", Icon: Send },
 ];
 // Reference data: used often, but not the daily flow, so it sits at the bottom.
-const bottom: Item[] = [{ href: "/contacts", label: "Contacts", Icon: BookUser }];
+const bottom: Item[] = [{ href: "/contacts", label: "Clients", Icon: BookUser }];
 
 const PHONE_TABS = 4; // Overview, Leads, Email Assistant, Documents; the rest go under "More"
 

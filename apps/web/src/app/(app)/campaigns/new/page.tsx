@@ -224,7 +224,7 @@ export default async function NewCampaign({ searchParams }: { searchParams: Prom
               </>
             ) : (
               <p className="text-sm text-bronze">
-                Nobody in this audience has current marketing consent. Record consent on the Contacts page first.
+                Nobody in this audience has agreed to marketing email yet.
               </p>
             )}
           </Card>
