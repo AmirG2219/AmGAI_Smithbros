@@ -10,20 +10,19 @@ const text = (f: FormData, k: string) => {
   return v || null;
 };
 
-export async function createAgreementsAction(formData: FormData) {
+const SECTION: Record<DocType, string> = { work_contract: "/contracts", policy_liability: "/agreements" };
+
+// Creates one document: a work contract or a policy and liability agreement.
+export async function createDocumentAction(formData: FormData) {
   const me = await requireAdmin();
-  const fail = (msg: string) => redirect(`/agreements/new?error=${encodeURIComponent(msg)}`);
+  const type = String(formData.get("doc_type")) as DocType;
+  if (!(type in SECTION)) redirect("/documents/new");
+  const fail = (msg: string) => redirect(`/documents/new?type=${type}&error=${encodeURIComponent(msg)}`);
 
-  const docs = (["work_contract", "policy_liability"] as DocType[]).filter(
-    (d) => formData.get(`doc_${d}`) === "on",
-  );
-  const leadId = text(formData, "project_id");
   const subtotal = Number(formData.get("subtotal"));
-
-  let projectId: string;
   try {
-    const r = await createAgreements(createAdminClient(), me.id, {
-      projectId: leadId,
+    await createAgreements(createAdminClient(), me.id, {
+      projectId: text(formData, "project_id"),
       client: {
         first_name: text(formData, "first_name") ?? "",
         last_name: text(formData, "last_name"),
@@ -35,7 +34,7 @@ export async function createAgreementsAction(formData: FormData) {
         city: text(formData, "site_city"),
         postal: text(formData, "site_postal"),
       },
-      docs,
+      docs: [type],
       scope: text(formData, "scope"),
       exclusions: text(formData, "exclusions"),
       subtotal: Number.isFinite(subtotal) && subtotal > 0 ? subtotal : null,
@@ -46,11 +45,10 @@ export async function createAgreementsAction(formData: FormData) {
       completionEstimate: text(formData, "completion_estimate"),
       customerAccepted: formData.get("accepted") === "on",
     });
-    projectId = r.projectId;
   } catch (e) {
     if (e instanceof UserError) return fail(e.message);
-    console.error("[agreements] create failed:", e);
-    return fail("Something went wrong creating the documents. Nothing was sent. Please try again.");
+    console.error("[documents] create failed:", e);
+    return fail("Something went wrong creating the document. Nothing was sent. Please try again.");
   }
-  redirect(`/agreements?notice=created&project=${projectId}`);
+  redirect(`${SECTION[type]}?notice=created`);
 }

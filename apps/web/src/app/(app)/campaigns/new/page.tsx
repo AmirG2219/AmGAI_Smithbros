@@ -97,6 +97,10 @@ export default async function NewCampaign({ searchParams }: { searchParams: Prom
         <ArrowLeft size={14} /> All campaigns
       </Link>
       <PageHeader eyebrow="System 2" title="New campaign" />
+      <p className="-mt-3 mb-5 max-w-3xl text-sm text-muted">
+        Fill in the three parts below, then press Preview. You&apos;ll see who would receive it and a sample email.
+        Nothing is saved or sent until you create the draft, and nothing goes out until it&apos;s approved.
+      </p>
 
       {typeof sp.error === "string" && errors[sp.error] && (
         <p className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
@@ -130,7 +134,7 @@ export default async function NewCampaign({ searchParams }: { searchParams: Prom
 
         <form method="get" className="grid gap-5">
           <Card className="p-5">
-            <p className="eyebrow mb-3">1. Goal</p>
+            <p className="eyebrow mb-3">1. What is this campaign for?</p>
             <div className="grid gap-3">
               <div>
                 <label className={label} htmlFor="name">Campaign name</label>
@@ -144,8 +148,8 @@ export default async function NewCampaign({ searchParams }: { searchParams: Prom
           </Card>
 
           <Card className="p-5">
-            <p className="eyebrow mb-1">2. Audience</p>
-            <p className="mb-3 text-xs text-muted">Leave a group empty to include everyone. Only people with current marketing consent are ever emailed.</p>
+            <p className="eyebrow mb-1">2. Who should get it?</p>
+            <p className="mb-3 text-xs text-muted">Tick the groups to include. Leave a group empty to not filter by it. Whatever you choose, only people who have given permission to receive marketing email are included.</p>
             <div className="grid gap-4">
               <div>
                 <p className={label}>Project type</p>
@@ -167,7 +171,7 @@ export default async function NewCampaign({ searchParams }: { searchParams: Prom
           </Card>
 
           <Card className="p-5">
-            <p className="eyebrow mb-1">3. The email</p>
+            <p className="eyebrow mb-1">3. What should the email say?</p>
             <p className="mb-3 text-xs text-muted">
               Use {"{{first_name}}"} to greet each person. The unsubscribe link and company details are added automatically.
             </p>
@@ -192,10 +196,10 @@ export default async function NewCampaign({ searchParams }: { searchParams: Prom
           <Card className="border-bronze p-5">
             <p className="eyebrow mb-3">Preview (nothing is saved yet)</p>
             <div className="mb-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-              <div><p className="font-serif text-3xl">{preview.matched}</p><p className="text-muted">match the audience</p></div>
+              <div><p className="font-serif text-3xl">{preview.matched}</p><p className="text-muted">match your choices</p></div>
               <div><p className="font-serif text-3xl">{preview.eligible}</p><p className="text-muted">will be emailed</p></div>
-              <div><p className="font-serif text-3xl">{preview.noConsent}</p><p className="text-muted">no marketing consent</p></div>
-              <div><p className="font-serif text-3xl">{preview.suppressed}</p><p className="text-muted">unsubscribed</p></div>
+              <div><p className="font-serif text-3xl">{preview.noConsent}</p><p className="text-muted">left out: no permission on file</p></div>
+              <div><p className="font-serif text-3xl">{preview.suppressed}</p><p className="text-muted">left out: unsubscribed</p></div>
             </div>
             {preview.sample ? (
               <>

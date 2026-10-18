@@ -30,6 +30,7 @@ export async function proxy(request: NextRequest) {
     path.startsWith("/login") ||
     path.startsWith("/inquiry") ||
     path.startsWith("/api/intake") ||
+    path.startsWith("/embed") ||
     path.startsWith("/unsubscribe") ||
     path.startsWith("/api/unsubscribe");
   if (!user && !isPublic) {

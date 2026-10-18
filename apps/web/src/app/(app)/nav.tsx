@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutGrid, Users, Contact, FileText, Mail } from "lucide-react";
+import { LayoutGrid, Users, Contact, FileText, FileSignature, Mail } from "lucide-react";
 
 const items = [
   { href: "/", label: "Overview", Icon: LayoutGrid },
   { href: "/leads", label: "Leads", Icon: Users },
   { href: "/contacts", label: "Contacts", Icon: Contact },
   { href: "/campaigns", label: "Campaigns", Icon: Mail },
+  { href: "/contracts", label: "Contracts", Icon: FileSignature },
   { href: "/agreements", label: "Agreements", Icon: FileText },
 ];
 
@@ -49,7 +50,7 @@ export function MobileNav() {
         <Link
           key={href}
           href={href}
-          className={`flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] ${
+          className={`flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] ${
             isActive(href) ? "text-gold" : "text-cream/60"
           }`}
         >

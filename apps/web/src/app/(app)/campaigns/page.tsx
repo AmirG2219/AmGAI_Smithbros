@@ -22,6 +22,27 @@ export default async function Campaigns() {
         </Link>
       </PageHeader>
 
+      <Card className="mb-6 p-5">
+        <p className="eyebrow mb-3">How campaigns work</p>
+        <ol className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            ["1. Describe it", "Say who you want to reach and why. Claude can write the first draft, or you write it yourself."],
+            ["2. Preview", "See how many people match, who is left out, and a sample email. Nothing is saved yet."],
+            ["3. Review and approve", "Create the draft, check it, then approve the exact wording. Once approved it can't be changed."],
+            ["4. Send", "Only people who gave permission get it, and each email has an unsubscribe link."],
+          ].map(([t, d]) => (
+            <li key={t}>
+              <p className="font-medium">{t}</p>
+              <p className="mt-1 text-muted">{d}</p>
+            </li>
+          ))}
+        </ol>
+        <p className="mt-4 text-xs text-muted">
+          Permission is recorded per person on the Contacts page. Anyone without it, or who has unsubscribed, is
+          never emailed, even if they match the audience.
+        </p>
+      </Card>
+
       {(data ?? []).length === 0 ? (
         <Card className="px-6 py-10 text-center text-sm text-muted">No campaigns yet.</Card>
       ) : (
