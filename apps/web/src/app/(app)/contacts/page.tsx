@@ -13,7 +13,22 @@ export default async function Contacts() {
     <div>
       <PageHeader eyebrow="Customers" title="Contacts" />
       {error && <p className="mb-4 text-red-700">Could not load contacts.</p>}
-      <Card className="overflow-x-auto">
+      {/* Phones: one card per contact */}
+      <div className="flex flex-col gap-3 md:hidden">
+        {(contacts ?? []).map((c) => (
+          <Card key={c.id} className="p-4">
+            <p className="font-medium">
+              {c.first_name} {c.last_name}
+            </p>
+            <p className="text-sm text-muted">{c.email ?? "—"}</p>
+            <p className="text-sm text-muted">{c.phone ?? "—"}</p>
+          </Card>
+        ))}
+        {(contacts ?? []).length === 0 && (
+          <Card className="px-6 py-10 text-center text-sm text-muted">No contacts yet.</Card>
+        )}
+      </div>
+      <Card className="hidden overflow-x-auto md:block">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-line">
             <tr>

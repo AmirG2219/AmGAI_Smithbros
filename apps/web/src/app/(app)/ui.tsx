@@ -12,10 +12,10 @@ export function PageHeader({
   children?: ReactNode;
 }) {
   return (
-    <header className="mb-8 flex items-end justify-between gap-4">
+    <header className="mb-6 flex flex-wrap items-end justify-between gap-4 md:mb-8">
       <div>
         <p className="eyebrow">{eyebrow}</p>
-        <h1 className="mt-1 font-serif text-4xl">{title}</h1>
+        <h1 className="mt-1 font-serif text-3xl sm:text-4xl">{title}</h1>
         <p className="mt-1 text-sm text-muted">
           {new Date().toLocaleDateString("en-CA", {
             timeZone: TZ,

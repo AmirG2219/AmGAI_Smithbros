@@ -48,12 +48,12 @@ export default function InquiryPage() {
     <main className="flex min-h-screen items-center justify-center bg-walnut px-4 py-10">
       <form
         onSubmit={onSubmit}
-        className="w-full max-w-xl rounded-2xl bg-cream p-8 shadow-xl"
+        className="w-full max-w-xl rounded-2xl bg-cream p-5 shadow-xl sm:p-8"
       >
         <p className="eyebrow text-bronze">Smith Bros Floors</p>
         <h1 className="mb-6 mt-1 font-serif text-4xl">Request an estimate</h1>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label className={label} htmlFor="first_name">First name</label>
             <input id="first_name" name="first_name" required className={field} />

@@ -42,16 +42,16 @@ export default async function Overview() {
         eyebrow={greeting(me.data?.display_name ?? "there")}
         title="Command Overview"
       />
-      <div className="mb-8 grid grid-cols-2 gap-5 xl:grid-cols-4">
+      <div className="mb-8 grid grid-cols-2 gap-3 sm:gap-5 xl:grid-cols-4">
         {tiles.map(({ label, value, Icon }) => (
-          <Card key={label} className="p-6">
+          <Card key={label} className="p-4 sm:p-6">
             <div className="flex items-start justify-between">
               <p className="eyebrow">{label}</p>
               <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-cream text-bronze">
                 <Icon size={17} strokeWidth={1.6} />
               </span>
             </div>
-            <p className="mt-6 font-serif text-5xl leading-none">{value}</p>
+            <p className="mt-4 font-serif text-4xl leading-none sm:mt-6 sm:text-5xl">{value}</p>
           </Card>
         ))}
       </div>

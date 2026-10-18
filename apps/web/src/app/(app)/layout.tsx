@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { Nav } from "./nav";
+import { MobileNav, Nav } from "./nav";
 
 async function signOut() {
   "use server";
@@ -40,8 +40,8 @@ export default async function AppLayout({
   }
 
   return (
-    <div className="flex min-h-screen">
-      <aside className="sticky top-0 flex h-screen w-60 shrink-0 flex-col bg-walnut p-5 text-cream">
+    <div className="flex min-h-screen flex-col md:flex-row">
+      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col bg-walnut p-5 text-cream md:flex">
         <div className="mb-8 border-b border-white/10 pb-6">
           <p className="font-serif text-2xl leading-none">Smith Bros</p>
           <p className="mt-2 text-[10px] uppercase tracking-[0.3em] text-gold">
@@ -70,7 +70,23 @@ export default async function AppLayout({
           </button>
         </form>
       </aside>
-      <main className="min-w-0 flex-1 p-8 lg:p-10">{children}</main>
+      <header className="flex items-center justify-between bg-walnut px-4 py-3 text-cream md:hidden">
+        <div>
+          <p className="font-serif text-xl leading-none">Smith Bros</p>
+          <p className="mt-1 text-[9px] uppercase tracking-[0.3em] text-gold">
+            Command Centre
+          </p>
+        </div>
+        <form action={signOut}>
+          <button aria-label="Sign out" className="p-2 text-cream/60">
+            <LogOut size={18} />
+          </button>
+        </form>
+      </header>
+      <main className="min-w-0 flex-1 p-4 pb-24 sm:p-6 md:p-8 md:pb-8 lg:p-10">
+        {children}
+      </main>
+      <MobileNav />
     </div>
   );
 }
