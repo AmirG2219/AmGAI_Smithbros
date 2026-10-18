@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutGrid, Users, Contact } from "lucide-react";
+import { LayoutGrid, Users, Contact, FileText } from "lucide-react";
 
 const items = [
   { href: "/", label: "Overview", Icon: LayoutGrid },
   { href: "/leads", label: "Leads", Icon: Users },
   { href: "/contacts", label: "Contacts", Icon: Contact },
+  { href: "/agreements", label: "Agreements", Icon: FileText },
 ];
 
 function useActive() {
