@@ -1,3 +1,5 @@
+import { LABELS } from "@/lib/leads/inquiry";
+
 // Email content lives in code for v1. Wording is a placeholder until Paul approves the real copy.
 
 const esc = (s: string) =>
@@ -58,41 +60,66 @@ export type StaffAlertInput = {
   phone: string | null;
   city: string | null;
   projectType: string;
-  material: string;
   squareFootage: number | null;
   timeline: string;
+  rooms: string[];
+  species: string[];
+  pattern: string | null;
+  finish: string | null;
+  preferredContact: string | null;
   notes: string | null;
   score: number | null;
   classification: string | null;
   estimate: { min: number; max: number; isSample: boolean } | null;
+  submittedAt: Date;
   dashboardUrl: string;
 };
 
+const pretty = (v: string) => LABELS[v] ?? v.replaceAll("_", " ").replace(/^./, (c) => c.toUpperCase());
+
 export function staffAlertEmail(i: StaffAlertInput) {
   const rating = i.classification ? `${i.classification.toUpperCase()} (${i.score})` : "Unrated";
-  const est = i.estimate
-    ? `${money(i.estimate.min)} – ${money(i.estimate.max)}${i.estimate.isSample ? " (sample pricing)" : ""}`
-    : "Needs a manual quote";
   const rows: [string, string][] = [
     ["Name", i.name],
-    ["Email", i.email],
     ["Phone", i.phone ?? "—"],
+    ["Email", i.email],
+    ["Project type", pretty(i.projectType)],
+    ["Square footage", i.squareFootage ? `${i.squareFootage} sq ft` : "—"],
+    ["Rooms", i.rooms.length ? i.rooms.map(pretty).join(", ") : "—"],
+    ["Timeline", pretty(i.timeline)],
+    ["Species interest", i.species.length ? i.species.map(pretty).join(", ") : "—"],
+    ["Pattern", i.pattern ? pretty(i.pattern) : "—"],
+    ["Finish", i.finish ? pretty(i.finish) : "—"],
     ["City", i.city ?? "—"],
-    ["Project", `${label(i.projectType)} · ${i.material}`],
-    ["Size", i.squareFootage ? `${i.squareFootage} sq ft` : "—"],
-    ["Timeline", label(i.timeline)],
-    ["Rating", rating],
-    ["Estimate", est],
-    ["Notes", i.notes ?? "—"],
+    ["Message", i.notes ?? "—"],
+    ["Lead rating", rating],
   ];
-  const subject = `New lead: ${i.name} · ${rating}`;
+  const sample = i.estimate?.isSample ? " (sample pricing)" : "";
+  const range = i.estimate ? `${money(i.estimate.min)} — ${money(i.estimate.max)}` : "Needs a manual quote";
+  const basis = [i.squareFootage ? `${i.squareFootage} sq ft` : null, pretty(i.projectType).toLowerCase()].filter(Boolean).join(" · ");
+  const when = i.submittedAt.toLocaleString("en-CA", { timeZone: "America/Edmonton", dateStyle: "medium", timeStyle: "short" });
+  const contactPref = i.preferredContact ? pretty(i.preferredContact).toLowerCase() : "not specified";
+
+  const subject = `New lead: ${i.name} · ${i.estimate ? range : "needs quote"}`;
   const html = shell(`
-<p style="font-size:18px;margin:0 0 12px"><b>New lead received</b></p>
+<p style="font-size:20px;margin:0 0 4px;font-family:Georgia,serif"><b>New Lead from Smith Bros. Website</b></p>
+<p style="margin:0 0 16px;font-size:12px;color:#8a7b6c">Submitted ${esc(when)}</p>
 <table style="width:100%;border-collapse:collapse;font-size:14px">
-${rows.map(([k, v]) => `<tr><td style="padding:6px 0;color:#8a7b6c;width:90px;vertical-align:top">${k}</td><td style="padding:6px 0">${esc(v)}</td></tr>`).join("")}
+${rows
+  .map(
+    ([k, v]) =>
+      `<tr><td style="padding:9px 0;color:#8a7b6c;width:130px;vertical-align:top;border-bottom:1px solid #eee6d8">${k}</td><td style="padding:9px 0;border-bottom:1px solid #eee6d8"><b>${esc(v)}</b></td></tr>`,
+  )
+  .join("")}
 </table>
-<p style="margin-top:18px"><a href="${esc(i.dashboardUrl)}" style="display:inline-block;background:#211a16;color:#f5f0e8;padding:10px 20px;border-radius:8px;text-decoration:none">Open in dashboard</a></p>`);
-  const text = `New lead received\n\n${rows.map(([k, v]) => `${k}: ${v}`).join("\n")}\n\nDashboard: ${i.dashboardUrl}`;
+<div style="background:#211a16;border-radius:10px;padding:18px 20px;margin:20px 0 14px">
+<div style="font-size:11px;letter-spacing:2px;color:#d19b38">ESTIMATED PROJECT VALUE${esc(sample.toUpperCase())}</div>
+<div style="font-size:28px;color:#f5f0e8;margin:6px 0;font-family:Georgia,serif"><b>${esc(range)}</b></div>
+<div style="font-size:12px;color:#a89888">${i.estimate ? `Based on ${esc(basis)}` : "Not enough information to price automatically"}</div>
+</div>
+<p style="font-size:14px;margin:0 0 16px"><b>Preferred contact:</b> ${esc(contactPref)}</p>
+<p style="margin:0"><a href="${esc(i.dashboardUrl)}" style="display:inline-block;background:#d19b38;color:#211a16;padding:11px 22px;border-radius:8px;text-decoration:none;font-weight:bold">Open in dashboard</a></p>`);
+  const text = `New Lead from Smith Bros. Website (${when})\n\n${rows.map(([k, v]) => `${k}: ${v}`).join("\n")}\n\nEstimated project value${sample}: ${range}${i.estimate ? ` (based on ${basis})` : ""}\nPreferred contact: ${contactPref}\n\nDashboard: ${i.dashboardUrl}`;
   return { subject, html, text };
 }
 

@@ -44,9 +44,13 @@ async function staffAlert({ q, score, estimate, projectId }: NotifyContext) {
     phone: q.phone,
     city: q.city,
     projectType: q.project_type,
-    material: q.material,
     squareFootage: q.square_footage,
     timeline: q.timeline,
+    rooms: q.rooms,
+    species: q.species,
+    pattern: q.pattern,
+    finish: q.finish,
+    preferredContact: q.preferred_contact,
     notes: q.notes,
     score: score?.score ?? null,
     classification: score?.classification ?? null,
@@ -54,7 +58,8 @@ async function staffAlert({ q, score, estimate, projectId }: NotifyContext) {
       estimate?.priced && estimate.min !== undefined && estimate.max !== undefined
         ? { min: estimate.min, max: estimate.max, isSample: estimate.isSample }
         : null,
-    dashboardUrl: `${appUrl()}/leads`,
+    submittedAt: new Date(),
+    dashboardUrl: `${appUrl()}/leads/${projectId}`,
   });
   const r = await sendEmail({ to, ...mail, idempotencyKey: `staff-alert:${projectId}` });
   if (!r.ok) console.error(`[notify] staff alert failed (${r.code}): ${r.summary}`);

@@ -4,12 +4,23 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Cross-origin embed test</title>
-    <style>body { font-family: Georgia, serif; background: #eef3e8; padding: 24px; }</style>
+    <style>
+      body { font-family: Georgia, serif; background: #eef3e8; margin: 0; }
+      header { background: #2d4a2b; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; color: #fff; }
+      header a { background: #fff; color: #2d4a2b; padding: 10px 16px; text-decoration: none; }
+      main { padding: 24px; }
+    </style>
   </head>
   <body>
-    <h1>Pretend this is the agency's WordPress site</h1>
-    <p>Open this page at <b>http://127.0.0.1:3000/embed-test-cross.html</b>. The form below is loaded from a different address (localhost), exactly like the real website will load it from our app.</p>
-    <div id="smithbros-estimate-form"></div>
+    <header>
+      <b>Pretend agency site (different address)</b>
+      <a href="#smithbros-estimate">Get Free Estimate</a>
+    </header>
+    <main>
+      <h1>Cross-origin test</h1>
+      <p>Open this page at <b>http://127.0.0.1:3000/embed-test-cross.html</b>. The form is loaded from a different address (localhost), exactly like the real website will load it from our app.</p>
+      <button data-smithbros-open style="padding:14px 22px">Begin your project</button>
+    </main>
     <script src="http://localhost:3000/embed.js" defer></script>
   </body>
 </html>

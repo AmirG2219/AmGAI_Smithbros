@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import { label } from "@/lib/leads/inquiry";
 import { createClient } from "@/lib/supabase/server";
 import { Card, PageHeader, Pill } from "../../ui";
 import { cancelConsultation, scheduleConsultation } from "./actions";
@@ -72,7 +73,15 @@ export default async function LeadDetail({
     .filter((e: { status: string }) => e.status !== "cancelled")
     .sort((a: { revision_number: number }, b: { revision_number: number }) => b.revision_number - a.revision_number)[0];
   const upcoming = (p.appointments ?? []).find((a: { status: string }) => a.status === "scheduled");
-  const notes = (p.additional_answers as { notes?: string } | null)?.notes;
+  const answers = (p.additional_answers ?? {}) as {
+    notes?: string;
+    rooms?: string[];
+    species?: string[];
+    pattern?: string;
+    finish?: string;
+    preferred_contact?: string;
+  };
+  const notes = answers.notes;
 
   const schedule = scheduleConsultation.bind(null, id);
 
@@ -107,10 +116,14 @@ export default async function LeadDetail({
 
           <Card className="p-5">
             <p className="eyebrow mb-2">Project</p>
-            <Row k="Type" v={p.project_type?.replaceAll("_", " ")} />
-            <Row k="Material" v={p.material_preference} />
+            <Row k="Type" v={p.project_type ? label(p.project_type) : null} />
             <Row k="Size" v={p.square_footage ? `${p.square_footage} sq ft` : null} />
-            <Row k="Timeline" v={p.timeline_preference?.replaceAll("_", " ")} />
+            <Row k="Rooms" v={answers.rooms?.length ? answers.rooms.map(label).join(", ") : null} />
+            <Row k="Timeline" v={p.timeline_preference ? label(p.timeline_preference) : null} />
+            <Row k="Wood species" v={answers.species?.length ? answers.species.map(label).join(", ") : null} />
+            <Row k="Pattern" v={answers.pattern ? label(answers.pattern) : null} />
+            <Row k="Finish" v={answers.finish ? label(answers.finish) : null} />
+            <Row k="Best way to reach" v={answers.preferred_contact ? label(answers.preferred_contact) : null} />
             <Row k="Stage" v={p.stage.replaceAll("_", " ")} />
             {notes && <p className="mt-3 text-sm text-muted">&ldquo;{notes}&rdquo;</p>}
             {p.review_reason && <p className="mt-3 text-sm text-bronze">Review: {p.review_reason}</p>}

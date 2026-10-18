@@ -6,14 +6,24 @@
     <title>Embed test (simulated WordPress page)</title>
     <style>
       /* Aggressive host-site styles, to prove the form is isolated from them */
-      body { font-family: Comic Sans MS, cursive; background: #ddeeff; padding: 24px; }
-      input, select, button, label, h2 { color: red !important; border-radius: 0 !important; }
+      body { font-family: Comic Sans MS, cursive; background: #ddeeff; margin: 0; }
+      header { background: #222; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; color: #fff; }
+      header a { background: #d19b38; color: #000; padding: 10px 16px; text-decoration: none; }
+      main { padding: 24px; min-height: 120vh; }
+      input, select, button, label, h2, div { color: red !important; border-radius: 0 !important; font-family: Impact !important; }
     </style>
   </head>
   <body>
-    <h1>Our flooring services</h1>
-    <p>Some page content from the agency's WordPress theme.</p>
-    <div id="smithbros-estimate-form"></div>
+    <header>
+      <b>Pretend WordPress site</b>
+      <!-- Any of these three ways opens the form -->
+      <a href="#smithbros-estimate" id="open-link">Get Free Estimate</a>
+    </header>
+    <main>
+      <h1>Creating Floors of Lasting Beauty</h1>
+      <p>Page content from the agency's WordPress theme.</p>
+      <button class="smithbros-open" style="padding:14px 22px">Begin your project</button>
+    </main>
     <script src="/embed.js" defer></script>
   </body>
 </html>
