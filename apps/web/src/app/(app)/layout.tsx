@@ -3,6 +3,8 @@ import Image from "next/image";
 import { LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getMe } from "@/lib/supabase/session";
+import { chatEnabled } from "@/lib/assistant/chat";
+import { ChatPanel } from "./chat-panel";
 import { MobileNav, Nav } from "./nav";
 
 async function signOut() {
@@ -72,6 +74,7 @@ export default async function AppLayout({
         {children}
       </main>
       <MobileNav />
+      <ChatPanel enabled={chatEnabled()} />
     </div>
   );
 }
