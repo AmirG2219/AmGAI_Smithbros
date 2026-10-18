@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Settings2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, PageHeader, Pill } from "../ui";
 
@@ -25,6 +26,7 @@ type Row = {
   summary: string | null;
   contact_id: string | null;
   project_id: string | null;
+  email_drafts: { status: string }[];
 };
 
 export default async function InboxPage({ searchParams }: { searchParams: Promise<{ f?: string }> }) {
@@ -34,8 +36,9 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
   let q = supabase
     .from("inbox_emails")
     .select(
-      "id, from_address, from_name, subject, body_text, received_at, analysis_status, category, priority, needs_reply, summary, contact_id, project_id",
+      "id, from_address, from_name, subject, body_text, received_at, analysis_status, category, priority, needs_reply, summary, contact_id, project_id, email_drafts(status)",
     )
+    .eq("direction", "inbound")
     .order("received_at", { ascending: false })
     .limit(100);
   if (f === "handled") q = q.in("status", ["handled", "archived"]);
@@ -47,7 +50,14 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
 
   return (
     <div>
-      <PageHeader eyebrow="Inbox" title="Email Assistant" />
+      <PageHeader eyebrow="Inbox" title="Email Assistant">
+        <Link
+          href="/inbox/settings"
+          className="inline-flex items-center gap-2 rounded-lg border border-line px-4 py-2.5 text-sm hover:border-bronze"
+        >
+          <Settings2 size={16} /> Teach the assistant
+        </Link>
+      </PageHeader>
       <div className="mb-4 flex flex-wrap gap-2">
         {filters.map((x) => (
           <Link
@@ -97,6 +107,7 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
                 <p className="mt-2 text-xs capitalize text-muted">
                   {e.category ? pretty(e.category) : e.analysis_status === "pending" ? "Analyzing…" : "Not analyzed"}
                   {e.needs_reply ? " · needs reply" : ""}
+                  {e.email_drafts?.some((d) => ["draft", "approved", "failed"].includes(d.status)) ? " · draft ready" : ""}
                 </p>
               </Card>
             </Link>

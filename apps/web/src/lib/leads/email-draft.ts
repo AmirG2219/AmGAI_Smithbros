@@ -57,11 +57,9 @@ export function templateFor(kind: TemplateKind, c: LeadEmailContext): { subject:
   return { subject: "", body: `Hi ${c.firstName},\n\n` };
 }
 
-export const draftEnabled = () => !!process.env.ANTHROPIC_API_KEY;
-
-// Asks Claude for a first draft. Staff always review and edit before anything is sent.
-export async function draftLeadEmail(goal: string, c: LeadEmailContext): Promise<{ subject: string; body: string }> {
-  const facts = [
+// The facts we can safely state about a lead, as plain lines for the model. Built only from our own records.
+export function leadFacts(c: LeadEmailContext): string {
+  return [
     `Customer first name: ${c.firstName}`,
     c.projectType ? `Project: ${label(c.projectType)}${c.squareFootage ? `, ${c.squareFootage} sq ft` : ""}` : null,
     c.timeline ? `They want to start: ${label(c.timeline)}` : null,
@@ -72,6 +70,14 @@ export async function draftLeadEmail(goal: string, c: LeadEmailContext): Promise
   ]
     .filter(Boolean)
     .join("\n");
+
+}
+
+export const draftEnabled = () => !!process.env.ANTHROPIC_API_KEY;
+
+// Asks Claude for a first draft. Staff always review and edit before anything is sent.
+export async function draftLeadEmail(goal: string, c: LeadEmailContext): Promise<{ subject: string; body: string }> {
+  const facts = leadFacts(c);
 
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",

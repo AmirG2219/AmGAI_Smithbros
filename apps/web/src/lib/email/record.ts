@@ -8,7 +8,7 @@ export type RecordedEmailResult =
 
 // The database's demo-mode guard refuses delivery to non-allowlisted recipients. We check the same
 // rule first so we skip cleanly instead of creating a message that can never be delivered.
-async function allowedByDemoMode(db: SupabaseClient, email: string) {
+export async function allowedByDemoMode(db: SupabaseClient, email: string) {
   const { data } = await db.from("settings").select("value").eq("key", "demo_mode").maybeSingle();
   if (!data) return false; // no demo_mode row: the database refuses all delivery
   const v = data.value as { enabled: boolean; recipient_allowlist: string[] };
