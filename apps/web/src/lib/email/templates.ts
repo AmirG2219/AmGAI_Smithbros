@@ -164,3 +164,16 @@ export function consultationConfirmationEmail(i: {
   const text = `Hi ${i.firstName},\n\nYour consultation with Smith Bros Floors is confirmed:\n${when}\n\nWe'll look at the space, talk through your options and give you an accurate quote. If you need to change the time, just reply to this email.\n\nSmith Bros Floors`;
   return { subject, html, text };
 }
+
+// A one-to-one email written by staff: plain paragraphs in the brand frame, with a signature.
+export function plainEmail(args: { subject: string; body: string; signature: string }) {
+  const paragraphs = args.body
+    .split(/\n{2,}/)
+    .map((p) => `<p style="margin:0 0 14px">${esc(p).replace(/\n/g, "<br>")}</p>`)
+    .join("");
+  const sig = esc(args.signature).replace(/\n/g, "<br>");
+  const html = shell(`${paragraphs}<p style="margin:18px 0 0;color:#5a4d42">${sig}</p>`);
+  const text = `${args.body}\n\n${args.signature}`;
+  return { subject: args.subject, html, text };
+}
+

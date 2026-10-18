@@ -26,6 +26,7 @@ export async function sendRecordedEmail(a: {
   conversationType?: "service" | "marketing";
   campaignRecipientId?: string;
   headers?: Record<string, string>;
+  replyTo?: string;
 }): Promise<RecordedEmailResult> {
   const { db, mail } = a;
   const to = a.to.trim().toLowerCase();
@@ -101,6 +102,7 @@ export async function sendRecordedEmail(a: {
     ...mail,
     idempotencyKey: a.idempotencyKey,
     headers: a.headers,
+    replyTo: a.replyTo,
   });
   const now = new Date().toISOString();
 

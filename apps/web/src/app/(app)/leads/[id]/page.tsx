@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, CalendarPlus, Mail, Phone } from "lucide-react";
 import { label } from "@/lib/leads/inquiry";
 import { createClient } from "@/lib/supabase/server";
 import { Card, PageHeader, Pill } from "../../ui";
@@ -26,6 +26,7 @@ const notices: Record<string, string> = {
   "booked-email-problem":
     "Consultation booked, but the confirmation email was not sent. See the timeline.",
   cancelled: "Consultation cancelled.",
+  "email-sent": "Email sent. It is saved on this lead's timeline.",
   "already-booked": "This lead already has a scheduled consultation. Cancel it first.",
   invalid: "That didn't work. Check the date and time and try again.",
 };
@@ -105,6 +106,39 @@ export default async function LeadDetail({
         <p className="mb-5 rounded-xl border border-gold/40 bg-gold/10 px-4 py-3 text-sm">{notices[notice]}</p>
       )}
 
+      <div className="mb-5 flex flex-wrap gap-2">
+        {c?.phone ? (
+          <a
+            href={`tel:${c.phone.replace(/[^\d+]/g, "")}`}
+            className="inline-flex items-center gap-2 rounded-lg bg-walnut px-4 py-2.5 text-sm font-medium text-cream transition-colors hover:bg-bronze"
+          >
+            <Phone size={16} /> Call {c.phone}
+          </a>
+        ) : (
+          <span className="inline-flex items-center gap-2 rounded-lg border border-line px-4 py-2.5 text-sm text-muted">
+            <Phone size={16} /> No phone number
+          </span>
+        )}
+        {c?.email ? (
+          <Link
+            href={`/leads/${id}/email`}
+            className="inline-flex items-center gap-2 rounded-lg border border-walnut px-4 py-2.5 text-sm font-medium transition-colors hover:bg-walnut hover:text-cream"
+          >
+            <Mail size={16} /> Email
+          </Link>
+        ) : (
+          <span className="inline-flex items-center gap-2 rounded-lg border border-line px-4 py-2.5 text-sm text-muted">
+            <Mail size={16} /> No email
+          </span>
+        )}
+        <a
+          href="#consultation"
+          className="inline-flex items-center gap-2 rounded-lg border border-walnut px-4 py-2.5 text-sm font-medium transition-colors hover:bg-walnut hover:text-cream"
+        >
+          <CalendarPlus size={16} /> {upcoming ? "View consultation" : "Book consultation"}
+        </a>
+      </div>
+
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="space-y-5 lg:col-span-2">
           <Card className="p-5">
@@ -149,7 +183,7 @@ export default async function LeadDetail({
             )}
           </Card>
 
-          <Card className="p-5">
+          <Card className="scroll-mt-6 p-5" id="consultation">
             <p className="eyebrow mb-1">Consultation</p>
             <p className="mb-3 text-xs text-muted">
               The free visit to see the space and give an accurate quote. Book it here for the customer and they get

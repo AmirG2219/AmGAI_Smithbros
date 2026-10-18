@@ -46,12 +46,15 @@ export function greeting(name: string) {
 export function Card({
   children,
   className = "",
+  id,
 }: {
   children: ReactNode;
   className?: string;
+  id?: string;
 }) {
   return (
     <div
+      id={id}
       className={`rounded-2xl border border-line bg-card shadow-[0_1px_3px_rgba(33,26,22,0.04)] ${className}`}
     >
       {children}
