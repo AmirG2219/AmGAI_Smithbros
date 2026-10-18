@@ -49,16 +49,8 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
   const { f = "reply", notice } = await searchParams;
   const supabase = await createClient();
 
-  // The strip at the top: what needs you, at a glance.
-  const [needReply, draftsReady, waiting, unbooked] = await Promise.all([
-    supabase.from("inbox_emails").select("id", { count: "exact", head: true }).eq("direction", "inbound").eq("status", "open").eq("needs_reply", true).then((r) => r.count ?? 0),
-    supabase.from("email_drafts").select("id", { count: "exact", head: true }).in("status", OPEN_DRAFT).then((r) => r.count ?? 0),
-    findWaitingOnCustomers(supabase),
-    findUnbookedLeads(supabase),
-  ]);
-
-  let rows: Row[] = [];
-  let error = false;
+  // The list is built first and loads in the same batch as the counts, so the page waits for one round trip, not two.
+  let list = null;
   if (f !== "waiting") {
     let q = supabase
       .from("inbox_emails")
@@ -72,10 +64,19 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
     else q = q.eq("status", "open");
     if (f === "reply") q = q.eq("needs_reply", true);
     if (f === "drafts") q = q.in("email_drafts.status", OPEN_DRAFT);
-    const res = await q;
-    error = !!res.error;
-    rows = (res.data ?? []) as unknown as Row[];
+    list = q;
   }
+
+  // The strip at the top: what needs you, at a glance.
+  const [needReply, draftsReady, waiting, unbooked, res] = await Promise.all([
+    supabase.from("inbox_emails").select("id", { count: "exact", head: true }).eq("direction", "inbound").eq("status", "open").eq("needs_reply", true).then((r) => r.count ?? 0),
+    supabase.from("email_drafts").select("id", { count: "exact", head: true }).in("status", OPEN_DRAFT).then((r) => r.count ?? 0),
+    findWaitingOnCustomers(supabase),
+    findUnbookedLeads(supabase),
+    list,
+  ]);
+  const error = !!res?.error;
+  const rows = (res?.data ?? []) as unknown as Row[];
 
   return (
     <div>

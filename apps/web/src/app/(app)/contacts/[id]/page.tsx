@@ -38,14 +38,13 @@ export default async function ClientPage({
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const supabase = await createClient();
 
-  const { data: c } = await supabase
-    .from("contacts")
-    .select("id, first_name, last_name, email, phone, source, notes, created_at")
-    .eq("id", id)
-    .maybeSingle();
-  if (!c) notFound();
-
-  const [{ data: jobs }, { data: events }, { data: convs }] = await Promise.all([
+  // Everything loads in one parallel batch (one round trip to the database, not four).
+  const [{ data: c }, { data: jobs }, { data: events }, { data: mails }] = await Promise.all([
+    supabase
+      .from("contacts")
+      .select("id, first_name, last_name, email, phone, source, notes, created_at")
+      .eq("id", id)
+      .maybeSingle(),
     supabase
       .from("projects")
       .select(
@@ -54,17 +53,16 @@ export default async function ClientPage({
       .eq("contact_id", id)
       .order("created_at", { ascending: false }),
     supabase.from("events").select("id, summary, created_at").eq("contact_id", id).order("created_at", { ascending: false }).limit(30),
-    supabase.from("conversations").select("id").eq("contact_id", id).eq("channel", "email"),
+    // One round trip: this client's email messages, found through their conversations.
+    supabase
+      .from("messages")
+      .select("id, direction, subject, created_at, conversations!inner(contact_id, channel)")
+      .eq("conversations.contact_id", id)
+      .eq("conversations.channel", "email")
+      .order("created_at", { ascending: false })
+      .limit(12),
   ]);
-  const convIds = (convs ?? []).map((x) => x.id);
-  const { data: mails } = convIds.length
-    ? await supabase
-        .from("messages")
-        .select("id, direction, subject, created_at")
-        .in("conversation_id", convIds)
-        .order("created_at", { ascending: false })
-        .limit(12)
-    : { data: [] };
+  if (!c) notFound();
 
   const name = [c.first_name, c.last_name].filter(Boolean).join(" ");
   const latestJob = jobs?.[0];

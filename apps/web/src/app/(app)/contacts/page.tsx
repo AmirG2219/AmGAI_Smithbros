@@ -27,11 +27,14 @@ export default async function Clients({
   if (sourceFilter) query = query.eq("source", sourceFilter);
   if (term)
     query = query.or(`first_name.ilike.%${term}%,last_name.ilike.%${term}%,email.ilike.%${term}%,phone.ilike.%${term}%`);
-  const { data: contacts, count, error } = await query.order("created_at", { ascending: false }).limit(200);
+  // The list and the source choices are independent, so they load together.
+  const [{ data: contacts, count, error }, { data: used }] = await Promise.all([
+    query.order("created_at", { ascending: false }).limit(200),
+    supabase.from("contacts").select("source").limit(2000),
+  ]);
   const rows = contacts ?? [];
 
   // Offer the sources that actually exist, so the filter never lists an empty choice.
-  const { data: used } = await supabase.from("contacts").select("source").limit(2000);
   const sources = [...new Set((used ?? []).map((r) => r.source).filter(Boolean))] as string[];
   const filtered = !!(term || sourceFilter);
 
