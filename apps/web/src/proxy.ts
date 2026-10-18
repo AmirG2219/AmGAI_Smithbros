@@ -41,5 +41,6 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  // Static files (images, fonts, scripts) are public by nature, so the login check skips them.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\.(?:png|jpg|jpeg|svg|webp|ico|woff2|js|html)$).*)"],
 };
