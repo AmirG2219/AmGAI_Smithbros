@@ -107,7 +107,7 @@ export async function buildDigest(db: SupabaseClient): Promise<Digest> {
   const dateLabel = new Date().toLocaleDateString("en-CA", { timeZone: TZ, weekday: "long", month: "long", day: "numeric" });
   const subject = quiet
     ? `Morning brief: all clear (${dateLabel})`
-    : `Morning brief: ${counts.needReply} email${counts.needReply === 1 ? "" : "s"} need you${counts.today ? `, ${counts.today} consultation${counts.today === 1 ? "" : "s"} today` : ""}`;
+    : `Morning brief: ${counts.needReply} email${counts.needReply === 1 ? " needs" : "s need"} you${counts.today ? `, ${counts.today} consultation${counts.today === 1 ? "" : "s"} today` : ""}`;
 
   const stat = (n: number, label: string) =>
     `<td style="padding:10px 6px;text-align:center"><div style="font-size:26px;font-family:Georgia,serif">${n}</div><div style="font-size:11px;color:#8a7b6c;letter-spacing:1px;text-transform:uppercase">${label}</div></td>`;

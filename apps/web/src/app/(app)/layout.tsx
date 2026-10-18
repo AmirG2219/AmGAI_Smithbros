@@ -36,9 +36,9 @@ export default async function AppLayout({
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col bg-walnut p-5 text-cream md:flex">
-        <div className="mb-8 border-b border-white/10 pb-6">
-          <Image src="/logo.png" alt="Smith Bros" width={140} height={93} priority className="h-auto w-[140px]" />
-          <p className="mt-3 text-[10px] uppercase tracking-[0.3em] text-gold">Command Centre</p>
+        <div className="mb-6 border-b border-white/10 pb-5">
+          <Image src="/logo.png" alt="Smith Bros" width={96} height={64} priority className="h-auto w-[96px]" />
+          <p className="mt-2.5 text-[9px] uppercase tracking-[0.3em] text-gold">Command Centre</p>
         </div>
         <Nav position="main" />
         <div className="mt-auto border-t border-white/10 pt-4">
@@ -61,7 +61,7 @@ export default async function AppLayout({
       </aside>
       <header className="flex items-center justify-between bg-walnut px-4 py-3 text-cream md:hidden">
         <div className="flex items-center gap-3">
-          <Image src="/logo.png" alt="Smith Bros" width={64} height={42} className="h-auto w-[64px]" />
+          <Image src="/logo.png" alt="Smith Bros" width={52} height={35} className="h-auto w-[52px]" />
           <p className="text-[9px] uppercase tracking-[0.3em] text-gold">Command Centre</p>
         </div>
         <form action={signOut}>

@@ -25,7 +25,7 @@ export default async function LoginPage({
         action={signIn}
         className="w-full max-w-sm rounded-lg bg-cream p-8 shadow-xl"
       >
-        <Image src="/logo.png" alt="Smith Bros" width={150} height={100} priority className="mx-auto mb-3 h-auto w-[150px]" />
+        <Image src="/logo.png" alt="Smith Bros" width={120} height={80} priority className="mx-auto mb-3 h-auto w-[120px]" />
         <p className="mb-6 text-center text-xs uppercase tracking-[0.3em] text-bronze">Command Centre</p>
         <label className="block text-sm mb-1" htmlFor="email">
           Email

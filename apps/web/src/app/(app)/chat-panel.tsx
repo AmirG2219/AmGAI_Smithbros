@@ -129,12 +129,12 @@ export function ChatPanel({ enabled }: { enabled: boolean }) {
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-walnut/40 backdrop-blur-[2px]" onClick={(e) => e.target === e.currentTarget && setOpen(false)}>
-          <section
-            role="dialog"
-            aria-label="Assistant chat"
-            className="flex h-full w-full flex-col bg-cream shadow-2xl sm:max-w-[440px]"
-          >
+        // A floating window in the corner (no dimmed backdrop), so the page stays visible and usable behind it.
+        <section
+          role="dialog"
+          aria-label="Assistant chat"
+          className="chat-window fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-3 z-50 flex h-[min(560px,calc(100dvh-8rem))] w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-2xl border border-line bg-cream shadow-2xl ring-1 ring-black/5 sm:bottom-6 sm:right-6 sm:h-[min(520px,calc(100dvh-7rem))] sm:w-[400px]"
+        >
             <header className="flex items-center gap-3 border-b border-line bg-card px-5 py-4">
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-walnut text-gold">
                 <Sparkles size={17} strokeWidth={1.6} />
@@ -202,7 +202,7 @@ export function ChatPanel({ enabled }: { enabled: boolean }) {
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void send(input); } }}
                   rows={1}
-                  placeholder="Ask anything about your emails or leads"
+                  placeholder="Ask about your emails or leads"
                   className="max-h-32 min-h-[44px] flex-1 resize-none rounded-xl border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-bronze"
                 />
                 <button disabled={busy || !input.trim()} aria-label="Send" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-walnut text-cream transition-colors hover:bg-bronze disabled:opacity-40">
@@ -210,8 +210,7 @@ export function ChatPanel({ enabled }: { enabled: boolean }) {
                 </button>
               </form>
             )}
-          </section>
-        </div>
+        </section>
       )}
     </>
   );

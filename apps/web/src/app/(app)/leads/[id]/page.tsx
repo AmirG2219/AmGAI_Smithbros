@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, CalendarPlus, Mail, Phone } from "lucide-react";
+import { ArrowLeft, CalendarCheck, Mail, Phone } from "lucide-react";
 import { label } from "@/lib/leads/inquiry";
 import { createClient } from "@/lib/supabase/server";
 import { Card, PageHeader, Pill } from "../../ui";
 import { cancelConsultation, scheduleConsultation } from "./actions";
+import { BookConsultation } from "./book-consultation";
 
 const TZ = "America/Edmonton";
 const money = (n: number) =>
@@ -31,7 +32,6 @@ const notices: Record<string, string> = {
   invalid: "That didn't work. Check the date and time and try again.",
 };
 
-const input = "w-full rounded-lg border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-bronze";
 
 function Row({ k, v }: { k: string; v: React.ReactNode }) {
   return (
@@ -131,12 +131,13 @@ export default async function LeadDetail({
             <Mail size={16} /> No email
           </span>
         )}
-        <a
-          href="#consultation"
-          className="inline-flex items-center gap-2 rounded-lg border border-walnut px-4 py-2.5 text-sm font-medium transition-colors hover:bg-walnut hover:text-cream"
-        >
-          <CalendarPlus size={16} /> {upcoming ? "View consultation" : "Book consultation"}
-        </a>
+        {upcoming ? (
+          <span className="inline-flex items-center gap-2 rounded-lg border border-line bg-card px-4 py-2.5 text-sm text-muted">
+            <CalendarCheck size={16} className="text-bronze" /> Consultation booked
+          </span>
+        ) : (
+          <BookConsultation action={schedule} />
+        )}
       </div>
 
       <div className="grid gap-5 lg:grid-cols-3">
@@ -183,46 +184,22 @@ export default async function LeadDetail({
             )}
           </Card>
 
-          <Card className="scroll-mt-6 p-5" id="consultation">
-            <p className="eyebrow mb-1">Consultation</p>
-            <p className="mb-3 text-xs text-muted">
-              The free visit to see the space and give an accurate quote. Book it here for the customer and they get
-              a confirmation email. Bookings they make themselves through the calendar link will appear here too.
-            </p>
-            {upcoming ? (
+          {upcoming && (
+            <Card className="p-5">
+              <p className="eyebrow mb-3">Consultation</p>
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <p className="font-serif text-2xl">{when(upcoming.start_at)}</p>
+                <div>
+                  <p className="font-serif text-2xl">{when(upcoming.start_at)}</p>
+                  <p className="mt-1 text-xs text-muted">The free visit to see the space and give an accurate quote.</p>
+                </div>
                 <form action={cancelConsultation.bind(null, id, upcoming.id)}>
-                  <button className="rounded-lg border border-line px-4 py-2 text-sm hover:border-bronze">
+                  <button className="rounded-lg border border-line px-4 py-2 text-sm transition-colors hover:border-bronze">
                     Cancel consultation
                   </button>
                 </form>
               </div>
-            ) : (
-              <form action={schedule} className="grid gap-3 sm:grid-cols-[1fr_auto_auto] sm:items-end">
-                <div>
-                  <label className="mb-1 block text-xs uppercase tracking-[0.15em] text-muted" htmlFor="start">
-                    Date and time (Calgary)
-                  </label>
-                  <input id="start" name="start" type="datetime-local" required className={input} />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs uppercase tracking-[0.15em] text-muted" htmlFor="minutes">
-                    Length
-                  </label>
-                  <select id="minutes" name="minutes" defaultValue="60" className={input}>
-                    <option value="30">30 min</option>
-                    <option value="60">1 hour</option>
-                    <option value="90">1.5 hours</option>
-                    <option value="120">2 hours</option>
-                  </select>
-                </div>
-                <button className="rounded-lg bg-walnut px-5 py-2.5 text-sm font-medium text-cream hover:bg-bronze">
-                  Book and send confirmation
-                </button>
-              </form>
-            )}
-          </Card>
+            </Card>
+          )}
         </div>
 
         <Card className="h-fit p-5">
