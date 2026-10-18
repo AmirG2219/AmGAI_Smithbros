@@ -14,6 +14,7 @@ export async function sendEmail(msg: {
   html: string;
   text: string;
   idempotencyKey: string;
+  headers?: Record<string, string>;
 }): Promise<SendResult> {
   try {
     const res = await fetch("https://api.resend.com/emails", {
@@ -29,6 +30,7 @@ export async function sendEmail(msg: {
         subject: msg.subject,
         html: msg.html,
         text: msg.text,
+        ...(msg.headers ? { headers: msg.headers } : {}),
       }),
       signal: AbortSignal.timeout(10_000),
     });

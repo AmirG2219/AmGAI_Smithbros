@@ -27,7 +27,11 @@ export async function proxy(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
   const isPublic =
-    path.startsWith("/login") || path.startsWith("/inquiry") || path.startsWith("/api/intake");
+    path.startsWith("/login") ||
+    path.startsWith("/inquiry") ||
+    path.startsWith("/api/intake") ||
+    path.startsWith("/unsubscribe") ||
+    path.startsWith("/api/unsubscribe");
   if (!user && !isPublic) {
     return NextResponse.redirect(new URL("/login", request.url));
   }

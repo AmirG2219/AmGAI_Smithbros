@@ -19,10 +19,13 @@ async function allowedByDemoMode(db: SupabaseClient, email: string) {
 export async function sendRecordedEmail(a: {
   db: SupabaseClient;
   contactId: string;
-  projectId: string;
+  projectId: string | null;
   to: string;
   mail: { subject: string; html: string; text: string };
   idempotencyKey: string;
+  conversationType?: "service" | "marketing";
+  campaignRecipientId?: string;
+  headers?: Record<string, string>;
 }): Promise<RecordedEmailResult> {
   const { db, mail } = a;
   const to = a.to.trim().toLowerCase();
@@ -31,13 +34,18 @@ export async function sendRecordedEmail(a: {
     return { status: "skipped", reason: "Recipient is not on the demo-mode allowlist" };
 
   // Reuse the project's open service email thread, or start one.
-  const existing = await db
+  const type = a.conversationType ?? "service";
+  let existingQuery = db
     .from("conversations")
     .select("id")
-    .eq("project_id", a.projectId)
+    .eq("contact_id", a.contactId)
     .eq("channel", "email")
-    .eq("type", "service")
-    .eq("status", "open")
+    .eq("type", type)
+    .eq("status", "open");
+  existingQuery = a.projectId
+    ? existingQuery.eq("project_id", a.projectId)
+    : existingQuery.is("project_id", null);
+  const existing = await existingQuery
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
@@ -49,7 +57,7 @@ export async function sendRecordedEmail(a: {
         contact_id: a.contactId,
         project_id: a.projectId,
         channel: "email",
-        type: "service",
+        type,
         subject: mail.subject,
       })
       .select("id")
@@ -69,6 +77,7 @@ export async function sendRecordedEmail(a: {
       subject: mail.subject,
       body_text: mail.text,
       body_html: mail.html,
+      ...(a.campaignRecipientId ? { campaign_recipient_id: a.campaignRecipientId } : {}),
     })
     .select("id")
     .single();
@@ -87,7 +96,12 @@ export async function sendRecordedEmail(a: {
     .single();
   if (delivery.error) throw delivery.error;
 
-  const sent = await sendEmail({ to: [to], ...mail, idempotencyKey: a.idempotencyKey });
+  const sent = await sendEmail({
+    to: [to],
+    ...mail,
+    idempotencyKey: a.idempotencyKey,
+    headers: a.headers,
+  });
   const now = new Date().toISOString();
 
   if (!sent.ok) {
