@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
 import { sendRecordedEmail } from "@/lib/email/record";
 import { emailEnabled } from "@/lib/email/resend";
+import { calendarLinks, icsFile } from "@/lib/email/calendar";
 import { consultationConfirmationEmail } from "@/lib/email/templates";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { zonedToUtc } from "@/lib/timezone";
@@ -23,7 +24,7 @@ export async function scheduleConsultation(projectId: string, formData: FormData
 
   const { data: project } = await db
     .from("projects")
-    .select("id, stage, contact_id, contacts(first_name, email)")
+    .select("id, stage, contact_id, site_address_line1, site_city, site_region, site_postal_code, contacts(first_name, email)")
     .eq("id", projectId)
     .single();
   if (!project) return back("invalid");
@@ -69,7 +70,19 @@ export async function scheduleConsultation(projectId: string, formData: FormData
 
   let notice = "booked";
   const contact = Array.isArray(project.contacts) ? project.contacts[0] : project.contacts;
-  if (emailEnabled() && contact?.email) {
+  const address = [project.site_address_line1, project.site_city, project.site_region, project.site_postal_code].filter(Boolean).join(", ") || null;
+  const invite = {
+    uid: appt.data.id as string,
+    start,
+    end,
+    title: "Consultation with Smith Bros Floors",
+    description: "Free flooring consultation. To change the time, reply to the confirmation email.",
+    location: address,
+  };
+  const notify = formData.get("notify") === "on";
+  if (!notify) {
+    notice = "booked";
+  } else if (emailEnabled() && contact?.email) {
     const r = await sendRecordedEmail({
       db,
       contactId: project.contact_id,
@@ -80,8 +93,12 @@ export async function scheduleConsultation(projectId: string, formData: FormData
         startAt: start,
         endAt: end,
         timeZone: TZ,
+        address,
+        calendar: calendarLinks(invite),
       }),
       idempotencyKey: `consult-confirm:${appt.data.id}:1`,
+      replyTo: process.env.INBOX_ADDRESS || undefined,
+      attachments: [{ filename: "consultation.ics", content: icsFile(invite), contentType: "text/calendar; method=PUBLISH" }],
     });
     if (r.status === "sent") {
       await event("appointment.confirmation_sent", "Consultation confirmation emailed");

@@ -143,25 +143,43 @@ export function consultationConfirmationEmail(i: {
   startAt: Date;
   endAt: Date;
   timeZone: string;
+  address?: string | null;
+  calendar?: { google: string; outlook: string };
 }) {
-  const day = i.startAt.toLocaleDateString("en-CA", {
+  const dateLong = i.startAt.toLocaleDateString("en-CA", {
     timeZone: i.timeZone,
     weekday: "long",
     month: "long",
     day: "numeric",
     year: "numeric",
   });
-  const time = (d: Date) =>
-    d.toLocaleTimeString("en-CA", { timeZone: i.timeZone, hour: "numeric", minute: "2-digit" });
-  const when = `${day}, ${time(i.startAt)} – ${time(i.endAt)} (${i.timeZone.split("/").pop()?.replace("_", " ")} time)`;
-  const subject = "Your Smith Bros Floors consultation is confirmed";
+  const time = (d: Date) => d.toLocaleTimeString("en-CA", { timeZone: i.timeZone, hour: "numeric", minute: "2-digit" });
+  const tz = i.timeZone.split("/").pop()?.replace("_", " ") ?? "";
+  const timeRange = `${time(i.startAt)} to ${time(i.endAt)} (${tz} time)`;
+  const subject = `Your consultation is confirmed: ${i.startAt.toLocaleDateString("en-CA", { timeZone: i.timeZone, weekday: "long", month: "long", day: "numeric" })}`;
+
+  const row = (k: string, v: string) =>
+    `<tr><td style="padding:8px 0;color:#8a7b6c;font-size:12px;letter-spacing:1px;text-transform:uppercase;width:90px;vertical-align:top">${k}</td><td style="padding:8px 0;font-size:15px"><b>${esc(v)}</b></td></tr>`;
+  const button = (href: string, text: string) =>
+    `<a href="${esc(href)}" style="display:inline-block;margin:0 8px 8px 0;border:1px solid #a87d53;color:#211a16;padding:9px 16px;border-radius:8px;text-decoration:none;font-size:14px">${text}</a>`;
+
   const html = shell(`
-<p>Hi ${esc(i.firstName)},</p>
-<p>Your consultation with Smith Bros Floors is confirmed:</p>
-<p style="font-size:18px;margin:16px 0"><b>${esc(when)}</b></p>
-<p>We&#39;ll look at the space, talk through your options and give you an accurate quote. If you need to change the time, just reply to this email.</p>
-<p style="color:#8a7b6c;font-size:13px">Smith Bros Floors</p>`);
-  const text = `Hi ${i.firstName},\n\nYour consultation with Smith Bros Floors is confirmed:\n${when}\n\nWe'll look at the space, talk through your options and give you an accurate quote. If you need to change the time, just reply to this email.\n\nSmith Bros Floors`;
+<p style="margin:0 0 4px;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#a87d53">Consultation confirmed</p>
+<p style="margin:0 0 16px;font-size:24px;font-family:Georgia,serif">Hi ${esc(i.firstName)}, we&#39;ll see you soon.</p>
+<p style="margin:0 0 16px">Your free consultation with Smith Bros Floors is booked. Here are the details:</p>
+<table style="width:100%;border-collapse:collapse;border-top:1px solid #e8dfd0;border-bottom:1px solid #e8dfd0;margin:0 0 20px">
+${row("Date", dateLong)}${row("Time", timeRange)}${i.address ? row("Where", i.address) : ""}
+</table>
+${i.calendar ? `<p style="margin:0 0 8px;font-size:13px;color:#8a7b6c">Add it to your calendar</p><div style="margin:0 0 20px">${button(i.calendar.google, "Google Calendar")}${button(i.calendar.outlook, "Outlook")}<span style="font-size:13px;color:#8a7b6c">or open the attached invite (.ics) for Apple Calendar.</span></div>` : ""}
+<p style="margin:0 0 6px"><b>What to expect</b></p>
+<p style="margin:0 0 16px;color:#5a4d42">We&#39;ll look at the space, talk through your options for materials and finish, and give you an accurate quote. There is no cost or obligation.</p>
+<p style="margin:0 0 16px;color:#5a4d42">Need to change the time? Just reply to this email and we&#39;ll sort it out.</p>
+<p style="margin:18px 0 0;color:#5a4d42">Smith Bros Floors</p>`);
+  const text =
+    `Hi ${i.firstName},\n\nYour free consultation with Smith Bros Floors is confirmed.\n\n` +
+    `Date: ${dateLong}\nTime: ${timeRange}\n${i.address ? `Where: ${i.address}\n` : ""}` +
+    (i.calendar ? `\nAdd to calendar:\nGoogle: ${i.calendar.google}\nOutlook: ${i.calendar.outlook}\nOr open the attached invite (.ics).\n` : "") +
+    `\nWhat to expect: we'll look at the space, talk through your options and give you an accurate quote. There is no cost or obligation.\n\nNeed to change the time? Just reply to this email.\n\nSmith Bros Floors`;
   return { subject, html, text };
 }
 

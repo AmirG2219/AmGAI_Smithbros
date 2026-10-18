@@ -141,7 +141,7 @@ export default async function LeadDetail({
             <CalendarCheck size={16} className="text-bronze" /> Consultation booked
           </span>
         ) : (
-          <BookConsultation action={schedule} />
+          <BookConsultation action={schedule} clientEmail={c?.email ?? null} />
         )}
         <Link
           href={`/documents/new?type=work_contract&project=${id}`}

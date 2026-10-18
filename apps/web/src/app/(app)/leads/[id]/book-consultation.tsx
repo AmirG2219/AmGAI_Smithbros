@@ -14,14 +14,14 @@ function Submit() {
       disabled={pending}
       className="rounded-lg bg-walnut px-5 py-2.5 text-sm font-medium text-cream transition-colors hover:bg-bronze disabled:opacity-60"
     >
-      {pending ? "Booking…" : "Book and send confirmation"}
+      {pending ? "Booking…" : "Book consultation"}
     </button>
   );
 }
 
 // A button that opens a small booking window. Staff pick a time with the customer; the customer gets a confirmation email.
 // When the company's calendar (Calendly) is connected, this button is the one place to switch over to it.
-export function BookConsultation({ action }: { action: (formData: FormData) => void | Promise<void> }) {
+export function BookConsultation({ action, clientEmail }: { action: (formData: FormData) => void | Promise<void>; clientEmail: string | null }) {
   const ref = useRef<HTMLDialogElement>(null);
   const [min, setMin] = useState("");
 
@@ -74,6 +74,20 @@ export function BookConsultation({ action }: { action: (formData: FormData) => v
               <option value="120">2 hours</option>
             </select>
           </div>
+
+          <label className="flex items-start gap-2 text-sm">
+            <input type="checkbox" name="notify" defaultChecked={!!clientEmail} disabled={!clientEmail} className="mt-1" />
+            <span>
+              {clientEmail ? (
+                <>
+                  Email the client a confirmation with a calendar invite
+                  <span className="block text-xs text-muted">Sent to {clientEmail}</span>
+                </>
+              ) : (
+                <span className="text-muted">This lead has no email address, so no confirmation can be sent.</span>
+              )}
+            </span>
+          </label>
 
           <div className="flex flex-wrap justify-end gap-3 pt-1">
             <button type="button" onClick={() => ref.current?.close()} className="rounded-lg border border-line px-5 py-2.5 text-sm hover:border-bronze">

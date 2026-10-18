@@ -10,9 +10,9 @@ const text = (f: FormData, k: string, max: number) => {
   return v || null;
 };
 
-export async function createContact(formData: FormData) {
+export async function createContact(_prev: { error?: string } | null, formData: FormData): Promise<{ error?: string }> {
   await requireAdmin();
-  const fail = (msg: string) => redirect(`/contacts/new?error=${encodeURIComponent(msg)}`);
+  const fail = (error: string) => ({ error });
 
   const first_name = text(formData, "first_name", 100);
   const email = text(formData, "email", 254)?.toLowerCase() ?? null;

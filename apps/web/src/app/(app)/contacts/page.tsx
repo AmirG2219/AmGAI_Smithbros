@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { Mail, Phone, Plus } from "lucide-react";
+import { Mail, Phone } from "lucide-react";
 import { SOURCE_LABELS, sourceLabel } from "@/lib/contacts/sources";
 import { createClient } from "@/lib/supabase/server";
+import { AddClient } from "./add-client";
 import { Card, PageHeader, Pill, td, th } from "../ui";
 
 const date = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" });
@@ -37,12 +38,7 @@ export default async function Clients({
   return (
     <div>
       <PageHeader eyebrow="Reference" title="Clients">
-        <Link
-          href="/contacts/new"
-          className="inline-flex items-center gap-2 rounded-lg bg-walnut px-4 py-2.5 text-sm font-medium text-cream hover:bg-bronze"
-        >
-          <Plus size={16} /> Add client
-        </Link>
+        <AddClient key={notice ?? "none"} />
       </PageHeader>
       {notice === "added" && (
         <p className="mb-5 rounded-xl border border-gold/40 bg-gold/10 px-4 py-3 text-sm">Client added.</p>

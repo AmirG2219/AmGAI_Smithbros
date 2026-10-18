@@ -27,7 +27,7 @@ export async function sendRecordedEmail(a: {
   campaignRecipientId?: string;
   headers?: Record<string, string>;
   replyTo?: string;
-  attachments?: { filename: string; content: Buffer }[];
+  attachments?: { filename: string; content: Buffer; contentType?: string }[];
   // Runs after the message exists and before any delivery attempt (the database fixes attachments before then).
   beforeDelivery?: (messageId: string) => Promise<void>;
 }): Promise<RecordedEmailResult> {

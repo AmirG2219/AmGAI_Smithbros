@@ -16,7 +16,7 @@ export async function sendEmail(msg: {
   idempotencyKey: string;
   headers?: Record<string, string>;
   replyTo?: string;
-  attachments?: { filename: string; content: Buffer }[];
+  attachments?: { filename: string; content: Buffer; contentType?: string }[];
 }): Promise<SendResult> {
   try {
     const res = await fetch("https://api.resend.com/emails", {
@@ -35,7 +35,7 @@ export async function sendEmail(msg: {
         ...(msg.headers ? { headers: msg.headers } : {}),
         ...(msg.replyTo ? { reply_to: msg.replyTo } : {}),
         ...(msg.attachments?.length
-          ? { attachments: msg.attachments.map((a) => ({ filename: a.filename, content: a.content.toString("base64") })) }
+          ? { attachments: msg.attachments.map((a) => ({ filename: a.filename, content: a.content.toString("base64"), ...(a.contentType ? { content_type: a.contentType } : {}) })) }
           : {}),
       }),
       signal: AbortSignal.timeout(msg.attachments?.length ? 30_000 : 10_000),
