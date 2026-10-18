@@ -1,6 +1,10 @@
 import { DocumentsList } from "../documents-list";
 
-export default async function Agreements({ searchParams }: { searchParams: Promise<{ notice?: string }> }) {
-  const { notice } = await searchParams;
-  return <DocumentsList type="policy_liability" notice={notice} />;
+export default async function Agreements({
+  searchParams,
+}: {
+  searchParams: Promise<{ notice?: string; q?: string; status?: string }>;
+}) {
+  const { notice, q, status } = await searchParams;
+  return <DocumentsList type="policy_liability" notice={notice} q={q} status={status} />;
 }

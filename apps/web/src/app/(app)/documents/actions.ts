@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
 import { createAgreements, UserError, type DocType } from "@/lib/agreements/create";
+import { sendAgreementEmail } from "@/lib/agreements/send";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const text = (f: FormData, k: string) => {
@@ -51,4 +52,23 @@ export async function createDocumentAction(formData: FormData) {
     return fail("Something went wrong creating the document. Nothing was sent. Please try again.");
   }
   redirect(`${SECTION[type]}?notice=created`);
+}
+
+// Emails a generated document to the client with the PDF attached.
+export async function sendDocumentAction(agreementId: string, back: string, formData: FormData) {
+  const me = await requireAdmin();
+  const dest = back.startsWith("/") && !back.startsWith("//") ? back : "/documents";
+  const go = (notice: string) => redirect(`${dest}${dest.includes("?") ? "&" : "?"}notice=${notice}`);
+  let outcome: string;
+  try {
+    ({ outcome } = await sendAgreementEmail(createAdminClient(), me.id, agreementId, {
+      to: String(formData.get("to") ?? ""),
+      subject: String(formData.get("subject") ?? ""),
+      body: String(formData.get("body") ?? ""),
+    }));
+  } catch (e) {
+    console.error("[documents] send failed:", e);
+    outcome = "failed";
+  }
+  go(`doc-${outcome}`);
 }

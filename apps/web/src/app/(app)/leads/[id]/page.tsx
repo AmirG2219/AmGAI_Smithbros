@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, CalendarCheck, Mail, Phone } from "lucide-react";
+import { ArrowLeft, CalendarCheck, FileText, Mail, Phone } from "lucide-react";
 import { label } from "@/lib/leads/inquiry";
 import { createClient } from "@/lib/supabase/server";
 import { Card, PageHeader, Pill } from "../../ui";
@@ -53,7 +53,7 @@ export default async function LeadDetail({
   const { notice } = await searchParams;
   const supabase = await createClient();
 
-  const [{ data: p }, { data: events }] = await Promise.all([
+  const [{ data: p }, { data: events }, { data: docs }] = await Promise.all([
     supabase
       .from("projects")
       .select(
@@ -67,6 +67,11 @@ export default async function LeadDetail({
       .eq("project_id", id)
       .order("created_at", { ascending: false })
       .limit(50),
+    supabase
+      .from("agreements")
+      .select("id, document_type, status, created_at, agreement_documents(id, document_kind)")
+      .eq("project_id", id)
+      .order("created_at", { ascending: false }),
   ]);
   if (!p) notFound();
 
@@ -138,6 +143,18 @@ export default async function LeadDetail({
         ) : (
           <BookConsultation action={schedule} />
         )}
+        <Link
+          href={`/documents/new?type=work_contract&project=${id}`}
+          className="inline-flex items-center gap-2 rounded-lg border border-line px-4 py-2.5 text-sm transition-colors hover:border-bronze"
+        >
+          <FileText size={16} /> New contract
+        </Link>
+        <Link
+          href={`/documents/new?type=policy_liability&project=${id}`}
+          className="inline-flex items-center gap-2 rounded-lg border border-line px-4 py-2.5 text-sm transition-colors hover:border-bronze"
+        >
+          <FileText size={16} /> New agreement
+        </Link>
       </div>
 
       <div className="grid gap-5 lg:grid-cols-3">
@@ -198,6 +215,36 @@ export default async function LeadDetail({
                   </button>
                 </form>
               </div>
+            </Card>
+          )}
+
+          {(docs ?? []).length > 0 && (
+            <Card className="p-5">
+              <p className="eyebrow mb-3">Documents</p>
+              <ul className="divide-y divide-line">
+                {(docs ?? []).map((d) => {
+                  const pdf = (d.agreement_documents as { id: string; document_kind: string }[]).find((x) => x.document_kind === "generated");
+                  return (
+                    <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-sm first:pt-0 last:pb-0">
+                      <span>
+                        {d.document_type === "work_contract" ? "Contract" : "Policy and liability agreement"}
+                        <span className="ml-2 text-xs text-muted">{new Date(d.created_at).toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" })}</span>
+                      </span>
+                      <span className="flex items-center gap-3">
+                        <Pill kind="review">{d.status}</Pill>
+                        {pdf && (
+                          <a href={`/api/agreements/${pdf.id}/pdf`} target="_blank" rel="noreferrer" className="text-bronze hover:text-walnut">
+                            Open PDF
+                          </a>
+                        )}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+              <Link href="/contracts" className="mt-3 inline-block text-xs text-bronze hover:text-walnut">
+                Send or manage in Documents
+              </Link>
             </Card>
           )}
         </div>

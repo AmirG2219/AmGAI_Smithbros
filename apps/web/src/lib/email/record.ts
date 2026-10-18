@@ -27,6 +27,9 @@ export async function sendRecordedEmail(a: {
   campaignRecipientId?: string;
   headers?: Record<string, string>;
   replyTo?: string;
+  attachments?: { filename: string; content: Buffer }[];
+  // Runs after the message exists and before any delivery attempt (the database fixes attachments before then).
+  beforeDelivery?: (messageId: string) => Promise<void>;
 }): Promise<RecordedEmailResult> {
   const { db, mail } = a;
   const to = a.to.trim().toLowerCase();
@@ -83,6 +86,7 @@ export async function sendRecordedEmail(a: {
     .select("id")
     .single();
   if (msg.error) throw msg.error;
+  await a.beforeDelivery?.(msg.data.id as string);
 
   const delivery = await db
     .from("message_deliveries")
@@ -103,6 +107,7 @@ export async function sendRecordedEmail(a: {
     idempotencyKey: a.idempotencyKey,
     headers: a.headers,
     replyTo: a.replyTo,
+    attachments: a.attachments,
   });
   const now = new Date().toISOString();
 
