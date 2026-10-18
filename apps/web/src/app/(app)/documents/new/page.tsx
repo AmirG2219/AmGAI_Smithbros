@@ -23,9 +23,9 @@ function Field({ name, title, children }: { name: string; title: string; childre
 export default async function NewDocument({
   searchParams,
 }: {
-  searchParams: Promise<{ type?: string; error?: string; project?: string }>;
+  searchParams: Promise<{ type?: string; error?: string; project?: string; client?: string }>;
 }) {
-  const { type, error, project } = await searchParams;
+  const { type, error, project, client } = await searchParams;
 
   // No document chosen: the Documents page is where that choice is made.
   if (type !== "work_contract" && type !== "policy_liability") redirect("/documents");
@@ -49,6 +49,10 @@ export default async function NewDocument({
           .eq("id", project)
           .maybeSingle()
           .then((r) => r.data)
+      : null;
+  const known =
+    !chosen && client && /^[0-9a-f-]{36}$/i.test(client)
+      ? await supabase.from("contacts").select("first_name, last_name, email, phone").eq("id", client).maybeSingle().then((r) => r.data)
       : null;
   const pc = chosen ? (Array.isArray(chosen.contacts) ? chosen.contacts[0] : chosen.contacts) : null;
   const accepted = chosen?.final_quotes?.find((q: { status: string }) => q.status === "accepted");
@@ -96,16 +100,16 @@ export default async function NewDocument({
           <p className="my-3 text-xs text-muted">New client details (ignored if you chose a lead):</p>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field name="first_name" title="First name">
-              <input id="first_name" name="first_name" className={input} />
+              <input id="first_name" name="first_name" defaultValue={known?.first_name ?? ""} className={input} />
             </Field>
             <Field name="last_name" title="Last name">
-              <input id="last_name" name="last_name" className={input} />
+              <input id="last_name" name="last_name" defaultValue={known?.last_name ?? ""} className={input} />
             </Field>
             <Field name="email" title="Email">
-              <input id="email" name="email" type="email" className={input} />
+              <input id="email" name="email" defaultValue={known?.email ?? ""} type="email" className={input} />
             </Field>
             <Field name="phone" title="Phone">
-              <input id="phone" name="phone" type="tel" className={input} />
+              <input id="phone" name="phone" defaultValue={known?.phone ?? ""} type="tel" className={input} />
             </Field>
           </div>
         </Card>

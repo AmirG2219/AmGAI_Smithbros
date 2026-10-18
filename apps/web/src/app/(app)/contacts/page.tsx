@@ -1,10 +1,13 @@
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Mail, Phone, Plus } from "lucide-react";
 import { SOURCE_LABELS, sourceLabel } from "@/lib/contacts/sources";
 import { createClient } from "@/lib/supabase/server";
 import { Card, PageHeader, Pill, td, th } from "../ui";
 
 const date = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" });
+
+const tel = (p: string) => `tel:${p.replace(/[^\d+]/g, "")}`;
+const iconBtn = "inline-flex h-8 w-8 items-center justify-center rounded-lg border border-line text-bronze transition-colors hover:border-bronze hover:text-walnut";
 
 export default async function Clients({
   searchParams,
@@ -78,14 +81,26 @@ export default async function Clients({
         {rows.map((c) => (
           <Card key={c.id} className="p-4">
             <div className="flex items-start justify-between gap-3">
-              <p className="font-medium">
+              <Link href={`/contacts/${c.id}`} className="font-medium hover:text-bronze">
                 {c.first_name} {c.last_name}
-              </p>
+              </Link>
               <Pill kind="review">{sourceLabel(c.source)}</Pill>
             </div>
             <p className="text-sm text-muted">{c.email ?? "—"}</p>
             <p className="text-sm text-muted">{c.phone ?? "—"}</p>
-            <p className="mt-1 text-xs text-muted">Added {date(c.created_at)}</p>
+            <div className="mt-3 flex items-center gap-2">
+              {c.phone && (
+                <a href={tel(c.phone)} aria-label="Call" className={iconBtn}>
+                  <Phone size={15} />
+                </a>
+              )}
+              {c.email && (
+                <a href={`mailto:${c.email}`} aria-label="Email" className={iconBtn}>
+                  <Mail size={15} />
+                </a>
+              )}
+              <span className="ml-auto text-xs text-muted">Added {date(c.created_at)}</span>
+            </div>
           </Card>
         ))}
         {rows.length === 0 && (
@@ -103,13 +118,16 @@ export default async function Clients({
               <th className={th}>Came from</th>
               <th className={th}>Jobs</th>
               <th className={th}>Added</th>
+              <th className={th}></th>
             </tr>
           </thead>
           <tbody>
             {rows.map((c) => (
               <tr key={c.id} className="border-b border-line last:border-0">
                 <td className={`${td} font-medium`}>
-                  {c.first_name} {c.last_name}
+                  <Link href={`/contacts/${c.id}`} className="hover:text-bronze">
+                    {c.first_name} {c.last_name}
+                  </Link>
                 </td>
                 <td className={`${td} text-muted`}>{c.email ?? "—"}</td>
                 <td className={`${td} text-muted`}>{c.phone ?? "—"}</td>
@@ -118,11 +136,25 @@ export default async function Clients({
                 </td>
                 <td className={`${td} text-muted`}>{c.projects?.length ?? 0}</td>
                 <td className={`${td} text-muted`}>{date(c.created_at)}</td>
+                <td className={td}>
+                  <div className="flex justify-end gap-2">
+                    {c.phone && (
+                      <a href={tel(c.phone)} aria-label={`Call ${c.first_name}`} className={iconBtn}>
+                        <Phone size={15} />
+                      </a>
+                    )}
+                    {c.email && (
+                      <a href={`mailto:${c.email}`} aria-label={`Email ${c.first_name}`} className={iconBtn}>
+                        <Mail size={15} />
+                      </a>
+                    )}
+                  </div>
+                </td>
               </tr>
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-6 py-10 text-center text-muted">
+                <td colSpan={7} className="px-6 py-10 text-center text-muted">
                   {filtered ? "No clients match." : "No clients yet."}
                 </td>
               </tr>
