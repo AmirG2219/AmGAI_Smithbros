@@ -1,6 +1,7 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
+import { LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { Nav } from "./nav";
 
 async function signOut() {
   "use server";
@@ -8,12 +9,6 @@ async function signOut() {
   await supabase.auth.signOut();
   redirect("/login");
 }
-
-const nav = [
-  { href: "/", label: "Overview" },
-  { href: "/leads", label: "Leads" },
-  { href: "/contacts", label: "Contacts" },
-];
 
 export default async function AppLayout({
   children,
@@ -46,30 +41,36 @@ export default async function AppLayout({
 
   return (
     <div className="flex min-h-screen">
-      <aside className="flex w-56 flex-col bg-walnut p-5 text-cream">
-        <p className="text-[10px] uppercase tracking-[0.25em] text-gold">
-          Smith Bros Floors
-        </p>
-        <p className="mb-8 text-lg font-semibold">Command Centre</p>
-        <nav className="flex flex-col gap-1">
-          {nav.map((n) => (
-            <Link
-              key={n.href}
-              href={n.href}
-              className="rounded px-3 py-2 hover:bg-bronze/30"
-            >
-              {n.label}
-            </Link>
-          ))}
-        </nav>
-        <div className="mt-auto text-sm">
-          <p className="text-cream/70">{me.display_name}</p>
-          <form action={signOut}>
-            <button className="mt-1 text-gold underline">Sign out</button>
-          </form>
+      <aside className="sticky top-0 flex h-screen w-60 shrink-0 flex-col bg-walnut p-5 text-cream">
+        <div className="mb-8 border-b border-white/10 pb-6">
+          <p className="font-serif text-2xl leading-none">Smith Bros</p>
+          <p className="mt-2 text-[10px] uppercase tracking-[0.3em] text-gold">
+            Command Centre
+          </p>
         </div>
+        <p className="mb-2 px-3 text-[10px] uppercase tracking-[0.25em] text-cream/30">
+          Main
+        </p>
+        <Nav />
+        <form
+          action={signOut}
+          className="mt-auto flex items-center gap-3 border-t border-white/10 pt-4"
+        >
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-bronze font-medium">
+            {me.display_name.slice(0, 1)}
+          </div>
+          <div className="min-w-0 flex-1 text-sm">
+            <p className="truncate">{me.display_name}</p>
+            <p className="text-[10px] uppercase tracking-widest text-cream/40">
+              {me.role}
+            </p>
+          </div>
+          <button aria-label="Sign out" className="text-cream/50 hover:text-gold">
+            <LogOut size={16} />
+          </button>
+        </form>
       </aside>
-      <main className="flex-1 p-8">{children}</main>
+      <main className="min-w-0 flex-1 p-8 lg:p-10">{children}</main>
     </div>
   );
 }

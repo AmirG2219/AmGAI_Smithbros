@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-
-export const dynamic = "force-dynamic";
+import { Card, PageHeader, td, th } from "../ui";
 
 export default async function Contacts() {
   const supabase = await createClient();
@@ -12,43 +11,46 @@ export default async function Contacts() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-semibold">Contacts</h1>
-      {error && <p className="text-red-700">Could not load contacts.</p>}
-      <div className="overflow-x-auto rounded-lg border border-line bg-card">
+      <PageHeader eyebrow="Customers" title="Contacts" />
+      {error && <p className="mb-4 text-red-700">Could not load contacts.</p>}
+      <Card className="overflow-x-auto">
         <table className="w-full text-left text-sm">
-          <thead className="border-b border-line text-bronze">
+          <thead className="border-b border-line">
             <tr>
-              <th className="p-3">Name</th>
-              <th className="p-3">Email</th>
-              <th className="p-3">Phone</th>
-              <th className="p-3">Source</th>
-              <th className="p-3">Added</th>
+              <th className={th}>Name</th>
+              <th className={th}>Email</th>
+              <th className={th}>Phone</th>
+              <th className={th}>Source</th>
+              <th className={th}>Added</th>
             </tr>
           </thead>
           <tbody>
             {(contacts ?? []).map((c) => (
               <tr key={c.id} className="border-b border-line last:border-0">
-                <td className="p-3">
+                <td className={`${td} font-medium`}>
                   {c.first_name} {c.last_name}
                 </td>
-                <td className="p-3">{c.email ?? "—"}</td>
-                <td className="p-3">{c.phone ?? "—"}</td>
-                <td className="p-3">{c.source ?? "—"}</td>
-                <td className="p-3">
-                  {new Date(c.created_at).toLocaleDateString()}
+                <td className={`${td} text-muted`}>{c.email ?? "—"}</td>
+                <td className={`${td} text-muted`}>{c.phone ?? "—"}</td>
+                <td className={`${td} text-muted`}>{c.source ?? "—"}</td>
+                <td className={`${td} text-muted`}>
+                  {new Date(c.created_at).toLocaleDateString("en-CA", {
+                    month: "short",
+                    day: "numeric",
+                  })}
                 </td>
               </tr>
             ))}
             {(contacts ?? []).length === 0 && (
               <tr>
-                <td colSpan={5} className="p-6 text-center text-bronze">
+                <td colSpan={5} className="px-6 py-10 text-center text-muted">
                   No contacts yet.
                 </td>
               </tr>
             )}
           </tbody>
         </table>
-      </div>
+      </Card>
     </div>
   );
 }

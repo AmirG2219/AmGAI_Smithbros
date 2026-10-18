@@ -27,7 +27,7 @@ export default async function LoginPage({
         <p className="text-xs uppercase tracking-[0.25em] text-bronze">
           Smith Bros Floors
         </p>
-        <h1 className="mt-1 mb-6 text-2xl font-semibold">Command Centre</h1>
+        <h1 className="mt-1 mb-6 font-serif text-4xl">Command Centre</h1>
         <label className="block text-sm mb-1" htmlFor="email">
           Email
         </label>

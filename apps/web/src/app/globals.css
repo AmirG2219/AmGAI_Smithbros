@@ -7,8 +7,9 @@
   --bronze: #a87d53;
   --gold: #d19b38;
   --ink: #211a16;
-  --line: #e2d9c9;
-  --card: #fbf8f2;
+  --muted: #8a7b6c;
+  --line: #e8dfd0;
+  --card: #fdfbf7;
 }
 
 @theme inline {
@@ -16,14 +17,23 @@
   --color-cream: var(--cream);
   --color-bronze: var(--bronze);
   --color-gold: var(--gold);
+  --color-muted: var(--muted);
   --color-line: var(--line);
   --color-card: var(--card);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-sans-face);
+  --font-serif: var(--font-serif-face);
 }
 
 body {
   background: var(--cream);
   color: var(--ink);
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-family: var(--font-sans-face), system-ui, sans-serif;
+}
+
+/* Small uppercase label used across the dashboard */
+.eyebrow {
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
