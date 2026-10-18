@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { brandHeader } from "@/lib/email/templates";
 
 const esc = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -43,7 +44,7 @@ export function buildCampaignEmail(args: {
     .join("");
   const html = `<div style="background:#f5f0e8;padding:24px;font-family:Arial,Helvetica,sans-serif;color:#211a16">
 <div style="max-width:560px;margin:0 auto;background:#fdfbf7;border:1px solid #e8dfd0;border-radius:12px;overflow:hidden">
-<div style="background:#211a16;color:#f5f0e8;padding:20px 24px"><div style="font-size:11px;letter-spacing:3px;color:#d19b38">SMITH BROS FLOORS</div></div>
+${brandHeader()}
 <div style="padding:24px;font-size:15px;line-height:1.6">${paragraphs}</div>
 <div style="padding:16px 24px;border-top:1px solid #e8dfd0;font-size:12px;color:#8a7b6c">Smith Bros Floors${address ? `, ${esc(address)}` : ""}<br>You are receiving this because you gave us permission to email you. <a href="${esc(link)}" style="color:#8a7b6c">Unsubscribe</a></div>
 </div></div>`;

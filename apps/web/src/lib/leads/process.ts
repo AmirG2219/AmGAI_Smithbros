@@ -10,6 +10,8 @@ export type IntakeResult = {
   duplicate: boolean;
   // false if a follow-up step failed; the lead itself is always saved first.
   fully_processed: boolean;
+  // The rough estimate the visitor may see on screen (null when there is none, or it must not be shown yet).
+  estimate: { min: number; max: number; isSample: boolean } | null;
 };
 
 // Saves the lead, then scores it and records a draft estimate. The first step is the one that
@@ -45,7 +47,7 @@ export async function processInquiry(q: Inquiry): Promise<IntakeResult> {
 
   const projectId = intake.project_id as string;
   if (intake.outcome === "duplicate")
-    return { project_id: projectId, duplicate: true, fully_processed: true };
+    return { project_id: projectId, duplicate: true, fully_processed: true, estimate: null };
 
   let ok = true;
   const step = async (name: string, fn: () => Promise<void>) => {
@@ -189,5 +191,15 @@ export async function processInquiry(q: Inquiry): Promise<IntakeResult> {
     notifyNewLead({ db, projectId, q, score: scoreInfo, estimate: estimateInfo }),
   );
 
-  return { project_id: projectId, duplicate: false, fully_processed: ok };
+  // Placeholder (test) pricing may only be shown while demo mode is on, labelled as a sample. This mirrors the
+  // database rule that keeps invented prices away from real customers.
+  let estimate: IntakeResult["estimate"] = null;
+  const info = estimateInfo as NotifyContext["estimate"];
+  if (info?.priced && info.min !== undefined && info.max !== undefined) {
+    const { data: demo } = await db.from("settings").select("value").eq("key", "demo_mode").maybeSingle();
+    const demoOn = (demo?.value as { enabled?: boolean } | undefined)?.enabled === true;
+    if (!info.isSample || demoOn) estimate = { min: info.min, max: info.max, isSample: info.isSample };
+  }
+
+  return { project_id: projectId, duplicate: false, fully_processed: ok, estimate };
 }

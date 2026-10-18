@@ -1,3 +1,5 @@
+import Image from "next/image";
+
 type SP = { r?: string; t?: string; done?: string; error?: string };
 
 // Public page. Shows a confirm button rather than unsubscribing on load, so link scanners can't do it by accident.
@@ -6,7 +8,7 @@ export default async function Unsubscribe({ searchParams }: { searchParams: Prom
   return (
     <main className="flex min-h-screen items-center justify-center bg-walnut px-4">
       <div className="w-full max-w-md rounded-2xl bg-cream p-8 text-center">
-        <p className="eyebrow text-bronze">Smith Bros Floors</p>
+        <Image src="/logo.png" alt="Smith Bros" width={120} height={80} className="mx-auto mb-2 h-auto w-[120px]" />
         {done ? (
           <>
             <h1 className="mt-1 font-serif text-4xl">You&apos;re unsubscribed</h1>

@@ -10,10 +10,25 @@ export const money = (n: number) =>
 
 const label = (v: string) => v.replaceAll("_", " ");
 
+// The logo is an image the recipient's mail app downloads, so it only works once the app has a public https address.
+function logoSrc() {
+  const base = (process.env.APP_URL ?? "").trim().replace(/\/$/, "");
+  return /^https:\/\//.test(base) ? `${base}/logo.png` : null;
+}
+
+export function brandHeader() {
+  const src = logoSrc();
+  return `<div style="background:#211a16;padding:18px 24px">${
+    src
+      ? `<img src="${esc(src)}" width="96" alt="Smith Bros Floors" style="display:block;border:0;height:auto">`
+      : `<div style="font-size:11px;letter-spacing:3px;color:#d19b38">SMITH BROS FLOORS</div>`
+  }</div>`;
+}
+
 function shell(inner: string) {
   return `<div style="background:#f5f0e8;padding:24px;font-family:Arial,Helvetica,sans-serif;color:#211a16">
 <div style="max-width:560px;margin:0 auto;background:#fdfbf7;border:1px solid #e8dfd0;border-radius:12px;overflow:hidden">
-<div style="background:#211a16;color:#f5f0e8;padding:20px 24px"><div style="font-size:11px;letter-spacing:3px;color:#d19b38">SMITH BROS FLOORS</div></div>
+${brandHeader()}
 <div style="padding:24px;font-size:15px;line-height:1.6">${inner}</div></div></div>`;
 }
 

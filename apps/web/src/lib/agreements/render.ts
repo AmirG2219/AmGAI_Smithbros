@@ -1,10 +1,10 @@
 import { PDFDocument, PDFFont, StandardFonts, rgb } from "pdf-lib";
+import { LOGO_ASPECT, LOGO_PNG_BASE64 } from "@/lib/brand/logo";
 
 // Template format (plain text):  "# Title", "## Heading", "- bullet", blank line = paragraph break,
 // and {{variable}} placeholders. Anything else is body text.
 
 const PAGE = { w: 612, h: 792, margin: 64 };
-const BRONZE = rgb(0.659, 0.49, 0.325);
 const WALNUT = rgb(0.129, 0.102, 0.086);
 const MUTED = rgb(0.54, 0.48, 0.42);
 
@@ -55,19 +55,15 @@ export async function renderAgreementPdf(opts: {
   const serif = await pdf.embedFont(StandardFonts.TimesRomanBold);
   const sans = await pdf.embedFont(StandardFonts.Helvetica);
   const sansBold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  const logo = await pdf.embedPng(Buffer.from(LOGO_PNG_BASE64, "base64"));
   const width = PAGE.w - PAGE.margin * 2;
 
   let page = pdf.addPage([PAGE.w, PAGE.h]);
-  let y = PAGE.h - PAGE.margin;
+  let y = PAGE.h - PAGE.margin - 34;
 
+  const LOGO_H = 36;
   const brand = () => {
-    page.drawText("SMITH BROS FLOORS", {
-      x: PAGE.margin,
-      y: PAGE.h - 40,
-      size: 8,
-      font: sansBold,
-      color: BRONZE,
-    });
+    page.drawImage(logo, { x: PAGE.margin, y: PAGE.h - 28 - LOGO_H, width: LOGO_H * LOGO_ASPECT, height: LOGO_H });
   };
   brand();
 
@@ -75,7 +71,7 @@ export async function renderAgreementPdf(opts: {
     if (y - h < PAGE.margin + 20) {
       page = pdf.addPage([PAGE.w, PAGE.h]);
       brand();
-      y = PAGE.h - PAGE.margin;
+      y = PAGE.h - PAGE.margin - 34;
     }
   };
 

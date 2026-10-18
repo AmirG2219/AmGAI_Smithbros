@@ -101,7 +101,8 @@
     ".inline .card{max-width:520px;margin:0 auto;box-shadow:none;border:1px solid #e9e1d3;animation:none;max-height:none}",
     ".bar{height:3px;background:#efe7d8;flex:none}.bar i{display:block;height:100%;background:#c9993a;transition:width .3s ease}",
     ".head{display:flex;align-items:center;gap:12px;padding:16px 28px;border-bottom:1px solid #eee6d8;flex:none}",
-    ".logo{width:40px;height:40px;border-radius:50%;background:#211a16;color:#d8b66c;display:flex;align-items:center;justify-content:center;font-family:'SB Cormorant',Georgia,serif;font-size:13px;letter-spacing:.06em;font-weight:600;flex:none;overflow:hidden}.logo img{width:100%;height:100%;object-fit:cover}",
+    ".logo{width:56px;height:38px;flex:none;display:flex;align-items:center;justify-content:center}.logo img{width:100%;height:100%;object-fit:contain}",
+    ".logo.mono{width:40px;height:40px;border-radius:50%;background:#211a16;color:#d8b66c;font-family:'SB Cormorant',Georgia,serif;font-size:13px;letter-spacing:.06em;font-weight:600}",
     ".ttl{flex:1;font-family:'SB Cormorant',Georgia,'Times New Roman',serif;font-size:21px;font-weight:500}",
     ".x{background:none;border:0;cursor:pointer;color:#6b5e52;padding:6px;border-radius:6px;display:flex}.x:hover{color:#211a16;background:#f1eadc}",
     ".body{padding:22px 28px 8px;overflow-y:auto;flex:1;scrollbar-width:thin;scrollbar-color:#d9ceb9 transparent}",
@@ -130,6 +131,7 @@
     ".go{background:#c9993a;color:#fff;border:0;border-radius:4px;padding:14px 22px;font-weight:700;font-size:12.5px;letter-spacing:.09em;text-transform:uppercase;cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:background .15s}.go:hover{background:#b8892f}.go:disabled{opacity:.65;cursor:default}",
     ".done{text-align:center;padding:30px 10px 26px}.tick{width:54px;height:54px;border-radius:50%;background:#fbf2de;color:#c9993a;display:flex;align-items:center;justify-content:center;margin:0 auto 16px}",
     ".done h2{font-family:'SB Cormorant',Georgia,serif;font-weight:500;font-size:30px;margin-bottom:6px}.done p{color:#6b5e52;max-width:340px;margin:0 auto}",
+    ".est{background:#211a16;border-radius:10px;padding:18px 20px;margin:18px auto 14px;max-width:340px}.estl{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#d8b66c}.estv{font-family:'SB Cormorant',Georgia,serif;font-size:34px;color:#f5f0e8;margin:6px 0 2px;line-height:1.15}.estb{font-size:12px;color:#a89888}.note{font-size:13px;color:#6b5e52;margin-top:4px}.next{margin-top:16px;font-weight:500;color:#2b211b!important}",
     ".book{display:inline-block;margin-top:22px;padding:14px 24px;border-radius:4px;background:#211a16;color:#f5f0e8;text-decoration:none;font-weight:700;font-size:12.5px;letter-spacing:.09em;text-transform:uppercase}.book:hover{background:#5a3a2e}",
     ".hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}",
     "@keyframes fade{from{opacity:0}to{opacity:1}}@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}",
@@ -140,7 +142,7 @@
   // ------------------------------------------------------------------ state
   function fresh() {
     return {
-      step: 0, errors: {}, sending: false, key: newKey(), done: false, firstName: "", bookingUrl: null, sendError: "",
+      step: 0, errors: {}, sending: false, key: newKey(), done: false, firstName: "", bookingUrl: null, estimate: null, sendError: "",
       v: { type: "", sqft: "", rooms: [], timeline: "", species: [], pattern: "", finish: "", name: "", phone: "", email: "", contact: "phone", notes: "", website: "" },
     };
   }
@@ -202,9 +204,27 @@
     return h;
   }
 
+  function money(n) {
+    return new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD", maximumFractionDigits: 0 }).format(n);
+  }
+  function typeName(id) {
+    for (var i = 0; i < TYPES.length; i++) if (TYPES[i][0] === id) return TYPES[i][1].toLowerCase();
+    return "";
+  }
+
   function viewDone() {
-    return '<div class="done"><div class="tick">' + svg(ICONS.check, 26) + "</div><h2>Thank you, <span id=\"sb-first\"></span></h2>" +
-      "<p>We’ve received your project details and will be in touch shortly.</p></div>";
+    var h = '<div class="done"><div class="tick">' + svg(ICONS.check, 26) + '</div><h2>Thank you, <span id="sb-first"></span></h2>';
+    if (S.estimate) {
+      var basis = [S.v.sqft ? Number(S.v.sqft).toLocaleString("en-CA") + " ft²" : "", typeName(S.v.type)].filter(Boolean).join(" · ");
+      h += '<div class="est"><div class="estl">Your rough estimate' + (S.estimate.isSample ? " (sample pricing)" : "") + "</div>" +
+        '<div class="estv">' + money(S.estimate.min) + " — " + money(S.estimate.max) + "</div>" +
+        (basis ? '<div class="estb">Based on ' + esc(basis) + " · before tax</div>" : "") + "</div>" +
+        '<p class="note">This is a ballpark based on what you’ve told us. We’ll confirm an accurate quote at your free consultation.</p>';
+    } else {
+      h += "<p>We’ve received your project details and will be in touch shortly.</p>";
+    }
+    h += S.bookingUrl ? '<p class="next">Next step: choose a time for your free consultation.</p>' : (S.estimate ? "<p>We’ll be in touch shortly to arrange a time.</p>" : "");
+    return h + "</div>";
   }
 
   function viewCard(modal) {
@@ -268,6 +288,8 @@
       .then(function (res) {
         if (!res.ok) throw new Error((res.body && res.body.error) || "Something went wrong");
         S.firstName = v.name.trim().split(/\s+/)[0];
+        var est = res.body.estimate;
+        S.estimate = est && typeof est.min === "number" && typeof est.max === "number" ? est : null;
         S.bookingUrl = typeof res.body.booking_url === "string" && /^https:\/\//.test(res.body.booking_url) ? res.body.booking_url : null;
         S.done = true; S.sending = false;
         window.dispatchEvent(new CustomEvent("smithbros:submitted"));
@@ -299,7 +321,7 @@
       wrap.innerHTML = modal ? '<div class="overlay' + (firstRender ? " anim" : "") + '" data-act="overlay"><div class="card" role="dialog" aria-modal="true" aria-labelledby="sb-title">' + viewCard(true) + "</div></div>" : '<div class="card">' + viewCard(false) + "</div>";
       firstRender = false;
       var im = wrap.querySelector(".logo img");
-      if (im) im.addEventListener("error", function () { im.parentNode.textContent = "SB"; });
+      if (im) im.addEventListener("error", function () { im.parentNode.classList.add("mono"); im.parentNode.textContent = "SB"; });
       var first = wrap.querySelector("#sb-first");
       if (first) first.textContent = S.firstName;
       if (S.done) {

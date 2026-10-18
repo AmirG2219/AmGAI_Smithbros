@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Image from "next/image";
 import { LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { MobileNav, Nav } from "./nav";
@@ -43,10 +44,8 @@ export default async function AppLayout({
     <div className="flex min-h-screen flex-col md:flex-row">
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col bg-walnut p-5 text-cream md:flex">
         <div className="mb-8 border-b border-white/10 pb-6">
-          <p className="font-serif text-2xl leading-none">Smith Bros</p>
-          <p className="mt-2 text-[10px] uppercase tracking-[0.3em] text-gold">
-            Command Centre
-          </p>
+          <Image src="/logo.png" alt="Smith Bros" width={140} height={93} priority className="h-auto w-[140px]" />
+          <p className="mt-3 text-[10px] uppercase tracking-[0.3em] text-gold">Command Centre</p>
         </div>
         <Nav position="main" />
         <div className="mt-auto border-t border-white/10 pt-4">
@@ -68,11 +67,9 @@ export default async function AppLayout({
         </form>
       </aside>
       <header className="flex items-center justify-between bg-walnut px-4 py-3 text-cream md:hidden">
-        <div>
-          <p className="font-serif text-xl leading-none">Smith Bros</p>
-          <p className="mt-1 text-[9px] uppercase tracking-[0.3em] text-gold">
-            Command Centre
-          </p>
+        <div className="flex items-center gap-3">
+          <Image src="/logo.png" alt="Smith Bros" width={64} height={42} className="h-auto w-[64px]" />
+          <p className="text-[9px] uppercase tracking-[0.3em] text-gold">Command Centre</p>
         </div>
         <form action={signOut}>
           <button aria-label="Sign out" className="p-2 text-cream/60">

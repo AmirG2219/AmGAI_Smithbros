@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
@@ -24,10 +25,8 @@ export default async function LoginPage({
         action={signIn}
         className="w-full max-w-sm rounded-lg bg-cream p-8 shadow-xl"
       >
-        <p className="text-xs uppercase tracking-[0.25em] text-bronze">
-          Smith Bros Floors
-        </p>
-        <h1 className="mt-1 mb-6 font-serif text-4xl">Command Centre</h1>
+        <Image src="/logo.png" alt="Smith Bros" width={150} height={100} priority className="mx-auto mb-3 h-auto w-[150px]" />
+        <p className="mb-6 text-center text-xs uppercase tracking-[0.3em] text-bronze">Command Centre</p>
         <label className="block text-sm mb-1" htmlFor="email">
           Email
         </label>
