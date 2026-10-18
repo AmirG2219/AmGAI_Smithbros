@@ -53,30 +53,19 @@ export default async function Overview() {
         ))}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <section className="min-w-0 lg:col-span-2">
-          <div className="mb-3 flex items-end justify-between">
-            <div>
-              <p className="eyebrow">Latest</p>
-              <h2 className="font-serif text-2xl">Recent leads</h2>
-            </div>
-            <Link href="/leads" className="text-sm text-bronze hover:text-walnut">
-              View all
-            </Link>
-          </div>
-          <LeadsTable leads={(recent.data ?? []) as LeadRow[]} />
-        </section>
-
-        <aside className="min-w-0">
-          <div className="mb-3">
-            <p className="eyebrow">Today</p>
-            <h2 className="font-serif text-2xl">Needs your attention</h2>
-          </div>
-          <Card className="divide-y divide-line">
-            {allClear && <p className="p-5 text-sm text-muted">You&apos;re all caught up. Nothing is waiting on you.</p>}
-
+      <section className="mb-8 min-w-0">
+        <div className="mb-3">
+          <p className="eyebrow">Today</p>
+          <h2 className="font-serif text-2xl">Needs your attention</h2>
+        </div>
+        {allClear && (
+          <Card>
+            <p className="p-5 text-sm text-muted">You&apos;re all caught up. Nothing is waiting on you.</p>
+          </Card>
+        )}
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {attention.replyTotal > 0 && (
-              <div className="p-4">
+              <Card className="p-4">
                 <div className="mb-2 flex items-center justify-between">
                   <p className="text-sm font-medium">Emails to reply to</p>
                   <Link href="/inbox" className="text-xs text-bronze hover:text-walnut">
@@ -96,11 +85,11 @@ export default async function Overview() {
                     </li>
                   ))}
                 </ul>
-              </div>
+              </Card>
             )}
 
             {attention.today.length > 0 && (
-              <div className="p-4">
+              <Card className="p-4">
                 <p className="mb-2 text-sm font-medium">Consultations today</p>
                 <ul className="space-y-1">
                   {attention.today.map((t) => (
@@ -112,11 +101,11 @@ export default async function Overview() {
                     </li>
                   ))}
                 </ul>
-              </div>
+              </Card>
             )}
 
             {(attention.waiting > 0 || attention.unbooked > 0) && (
-              <div className="p-4">
+              <Card className="p-4">
                 <p className="mb-2 text-sm font-medium">Follow-ups</p>
                 <ul className="space-y-1 text-sm">
                   {attention.waiting > 0 && (
@@ -134,11 +123,23 @@ export default async function Overview() {
                     </li>
                   )}
                 </ul>
-              </div>
+              </Card>
             )}
-          </Card>
-        </aside>
-      </div>
+        </div>
+      </section>
+
+      <section className="min-w-0">
+        <div className="mb-3 flex items-end justify-between">
+          <div>
+            <p className="eyebrow">Latest</p>
+            <h2 className="font-serif text-2xl">Recent leads</h2>
+          </div>
+          <Link href="/leads" className="text-sm text-bronze hover:text-walnut">
+            View all
+          </Link>
+        </div>
+        <LeadsTable leads={(recent.data ?? []) as LeadRow[]} />
+      </section>
     </div>
   );
 }
