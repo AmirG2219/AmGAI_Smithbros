@@ -11,6 +11,12 @@ export type LeadRow = {
   lead_classification: string | null;
   review_status: string;
   created_at: string;
+  estimates: {
+    revision_number: number;
+    status: string;
+    price_min: number | null;
+    price_max: number | null;
+  }[];
   contacts:
     | { first_name: string; last_name: string | null; email: string | null }
     | { first_name: string; last_name: string | null; email: string | null }[]
@@ -18,7 +24,19 @@ export type LeadRow = {
 };
 
 export const LEAD_COLUMNS =
-  "id, project_type, material_preference, square_footage, site_city, stage, lead_score, lead_classification, review_status, created_at, contacts(first_name, last_name, email)";
+  "id, project_type, material_preference, square_footage, site_city, stage, lead_score, lead_classification, review_status, created_at, contacts(first_name, last_name, email), estimates(revision_number, status, price_min, price_max)";
+
+const money = (n: number) =>
+  n.toLocaleString("en-CA", { style: "currency", currency: "CAD", maximumFractionDigits: 0 });
+
+function estimateLabel(l: LeadRow) {
+  const e = [...(l.estimates ?? [])]
+    .filter((x) => x.status !== "cancelled")
+    .sort((a, b) => b.revision_number - a.revision_number)[0];
+  if (!e) return "—";
+  if (e.price_min === null || e.price_max === null) return "Needs quote";
+  return `${money(e.price_min)} – ${money(e.price_max)}`;
+}
 
 export function LeadsTable({ leads }: { leads: LeadRow[] }) {
   return (
@@ -29,6 +47,7 @@ export function LeadsTable({ leads }: { leads: LeadRow[] }) {
             <th className={th}>Client</th>
             <th className={th}>Project</th>
             <th className={th}>Area</th>
+            <th className={th}>Estimate</th>
             <th className={th}>Rating</th>
             <th className={th}>Stage</th>
             <th className={th}>Received</th>
@@ -56,6 +75,7 @@ export function LeadsTable({ leads }: { leads: LeadRow[] }) {
                   )}
                 </td>
                 <td className={`${td} text-muted`}>{l.site_city ?? "—"}</td>
+                <td className={`${td} whitespace-nowrap`}>{estimateLabel(l)}</td>
                 <td className={td}>
                   {l.lead_classification ? (
                     <Pill kind={l.lead_classification}>
@@ -85,7 +105,7 @@ export function LeadsTable({ leads }: { leads: LeadRow[] }) {
           })}
           {leads.length === 0 && (
             <tr>
-              <td colSpan={6} className="px-6 py-10 text-center text-muted">
+              <td colSpan={7} className="px-6 py-10 text-center text-muted">
                 No leads yet.
               </td>
             </tr>
