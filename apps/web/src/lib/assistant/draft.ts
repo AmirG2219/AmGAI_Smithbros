@@ -1,8 +1,8 @@
+import { aiEnabled, structured } from "@/lib/ai/llm";
 import type { Knowledge } from "./knowledge";
 import type { Learning } from "./learning";
 
-export const replyAiEnabled = () => !!process.env.ANTHROPIC_API_KEY;
-const baseUrl = () => (process.env.ANTHROPIC_BASE_URL || "https://api.anthropic.com").replace(/\/$/, "");
+export const replyAiEnabled = aiEnabled;
 
 export type ThreadMessage = {
   direction: "inbound" | "outbound";
@@ -37,7 +37,6 @@ export async function draftReply(args: {
   bookingUrl: string | null;
   learning?: Learning;
 }): Promise<ReplyDraft> {
-  const model = process.env.ANTHROPIC_MODEL || "claude-sonnet-5-5";
   const k = args.knowledge;
 
   const thread = args.thread
@@ -59,41 +58,25 @@ export async function draftReply(args: {
     `<email_thread>\n${thread}\n</email_thread>\n\n` +
     (args.instruction ? `The owner's instruction for this reply (trusted): ${clip(args.instruction, 500)}\n` : "Write a helpful reply.\n");
 
-  const res = await fetch(`${baseUrl()}/v1/messages`, {
-    method: "POST",
-    headers: {
-      "x-api-key": process.env.ANTHROPIC_API_KEY!,
-      "anthropic-version": "2023-06-01",
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: 900,
-      system: SYSTEM,
-      tools: [
-        {
-          name: "write_reply",
-          description: "Write the reply draft.",
-          input_schema: {
-            type: "object",
-            properties: {
-              subject: { type: "string" },
-              body: { type: "string", description: "Plain text, paragraphs separated by blank lines" },
-              needs_input: { type: "array", items: { type: "string" }, description: "Questions or facts the owner must supply or check" },
-            },
-            required: ["subject", "body", "needs_input"],
-          },
+  const { input, model } = await structured({
+    system: SYSTEM,
+    user: content,
+    maxTokens: 2500,
+    tool: {
+      name: "write_reply",
+      description: "Write the reply draft.",
+      input_schema: {
+        type: "object",
+        properties: {
+          subject: { type: "string" },
+          body: { type: "string", description: "Plain text, paragraphs separated by blank lines" },
+          needs_input: { type: "array", items: { type: "string" }, description: "Questions or facts the owner must supply or check" },
         },
-      ],
-      tool_choice: { type: "tool", name: "write_reply" },
-      messages: [{ role: "user", content }],
-    }),
-    signal: AbortSignal.timeout(60_000),
+        required: ["subject", "body", "needs_input"],
+      },
+    },
   });
-  if (!res.ok) throw new Error(`Claude request failed (${res.status})`);
-  const json = (await res.json()) as { content?: { type: string; input?: Record<string, unknown> }[] };
-  const input = json.content?.find((c) => c.type === "tool_use")?.input;
-  if (!input || typeof input.body !== "string" || !input.body.trim()) throw new Error("Claude returned no draft");
+  if (typeof input.body !== "string" || !input.body.trim()) throw new Error("AI returned no draft");
 
   const subject =
     typeof input.subject === "string" && input.subject.trim()

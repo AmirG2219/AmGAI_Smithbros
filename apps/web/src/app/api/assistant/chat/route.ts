@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
   if (origin && new URL(origin).host !== req.headers.get("host"))
     return NextResponse.json({ error: "Not allowed" }, { status: 403 });
 
-  if (!chatEnabled()) return NextResponse.json({ error: "Chat is off until an Anthropic API key is added." }, { status: 503 });
+  if (!chatEnabled()) return NextResponse.json({ error: "Chat is off until an OpenAI API key is added." }, { status: 503 });
 
   const now = Date.now();
   const recent = (hits.get(me.id) ?? []).filter((t) => now - t < WINDOW_MS);

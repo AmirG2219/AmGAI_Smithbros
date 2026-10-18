@@ -23,7 +23,7 @@ const pretty = (s: string) => s.replaceAll("_", " ");
 const errors: Record<string, string> = {
   missing: "Fill in the name, goal, subject and message.",
   "no-recipients": "Nobody in that audience has current marketing consent, so there is nobody to email.",
-  ai: "Claude couldn't draft this just now. You can write it yourself below.",
+  ai: "The AI couldn't draft this just now. You can write it yourself below.",
 };
 
 function Checks({ name, options, selected }: { name: string; options: readonly string[]; selected: string[] }) {
@@ -111,7 +111,7 @@ export default async function NewCampaign({ searchParams }: { searchParams: Prom
       <div className="grid max-w-3xl gap-5">
         {ai ? (
           <Card className="p-5">
-            <p className="eyebrow mb-2">Draft with Claude</p>
+            <p className="eyebrow mb-2">Draft with AI</p>
             <form action={draftWithAi} className="grid gap-3">
               <textarea
                 name="instruction"
@@ -124,11 +124,11 @@ export default async function NewCampaign({ searchParams }: { searchParams: Prom
                 <Sparkles size={15} /> Draft campaign
               </button>
             </form>
-            <p className="mt-2 text-xs text-muted">Claude fills in the form below. You review and edit everything before anything is saved or sent.</p>
+            <p className="mt-2 text-xs text-muted">The AI fills in the form below. You review and edit everything before anything is saved or sent.</p>
           </Card>
         ) : (
           <p className="rounded-xl border border-line bg-card px-4 py-3 text-sm text-muted">
-            AI drafting is off until an Anthropic API key is added. You can write the campaign yourself below.
+            AI drafting is off until an OpenAI API key is added. You can write the campaign yourself below.
           </p>
         )}
 

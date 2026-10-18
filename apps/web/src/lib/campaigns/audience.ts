@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-// Structured audience filter. Claude may propose one, but it is only ever parsed into this shape and
+// Structured audience filter. The AI may propose one, but it is only ever parsed into this shape and
 // turned into parameterized queries here. It is never SQL.
 export type AudienceFilter = {
   project_types: string[];

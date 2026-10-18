@@ -1,3 +1,5 @@
+import { aiEnabled, aiFastModel, structured } from "@/lib/ai/llm";
+
 export const CATEGORIES = [
   "lead_reply",
   "customer_question",
@@ -18,8 +20,8 @@ export type Triage = {
   suggested_action: string;
 };
 
-export const triageEnabled = () => !!process.env.ANTHROPIC_API_KEY;
-export const triageModel = () => process.env.ANTHROPIC_TRIAGE_MODEL || "claude-haiku-5-5";
+export const triageEnabled = aiEnabled;
+export const triageModel = aiFastModel;
 
 const SYSTEM = `You triage incoming email for the owner of Smith Bros Floors, a flooring company in Calgary, Alberta.
 
@@ -38,51 +40,30 @@ export async function analyzeEmail(args: {
   body: string;
   context: string | null; // trusted facts from our own database
 }): Promise<{ triage: Triage; model: string }> {
-  const model = triageModel();
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "x-api-key": process.env.ANTHROPIC_API_KEY!,
-      "anthropic-version": "2023-06-01",
-      "content-type": "application/json",
+  const { input, model } = await structured({
+    system: SYSTEM,
+    model: triageModel(),
+    maxTokens: 1000,
+    timeoutMs: 45_000,
+    tool: {
+      name: "triage",
+      description: "Record the triage result for this email.",
+      input_schema: {
+        type: "object",
+        properties: {
+          category: { type: "string", enum: CATEGORIES },
+          priority: { type: "string", enum: PRIORITIES },
+          needs_reply: { type: "boolean" },
+          summary: { type: "string" },
+          suggested_action: { type: "string" },
+        },
+        required: ["category", "priority", "needs_reply", "summary", "suggested_action"],
+      },
     },
-    body: JSON.stringify({
-      model,
-      max_tokens: 500,
-      system: SYSTEM,
-      tools: [
-        {
-          name: "triage",
-          description: "Record the triage result for this email.",
-          input_schema: {
-            type: "object",
-            properties: {
-              category: { type: "string", enum: CATEGORIES },
-              priority: { type: "string", enum: PRIORITIES },
-              needs_reply: { type: "boolean" },
-              summary: { type: "string" },
-              suggested_action: { type: "string" },
-            },
-            required: ["category", "priority", "needs_reply", "summary", "suggested_action"],
-          },
-        },
-      ],
-      tool_choice: { type: "tool", name: "triage" },
-      messages: [
-        {
-          role: "user",
-          content:
-            `Trusted context from our records:\n${args.context ?? "No matching customer or lead on file."}\n\n` +
-            `Untrusted email follows.\n<email>\nFrom: ${args.from}\nSubject: ${args.subject}\n\n${args.body.slice(0, 8000)}\n</email>`,
-        },
-      ],
-    }),
-    signal: AbortSignal.timeout(45_000),
+    user:
+      `Trusted context from our records:\n${args.context ?? "No matching customer or lead on file."}\n\n` +
+      `Untrusted email follows.\n<email>\nFrom: ${args.from}\nSubject: ${args.subject}\n\n${args.body.slice(0, 8000)}\n</email>`,
   });
-  if (!res.ok) throw new Error(`Claude request failed (${res.status})`);
-  const json = (await res.json()) as { content?: { type: string; input?: Record<string, unknown> }[] };
-  const input = json.content?.find((c) => c.type === "tool_use")?.input;
-  if (!input) throw new Error("Claude returned no triage");
 
   // Never trust the shape: coerce to our allowed values.
   const pick = <T extends readonly string[]>(v: unknown, allowed: T, fallback: T[number]): T[number] =>

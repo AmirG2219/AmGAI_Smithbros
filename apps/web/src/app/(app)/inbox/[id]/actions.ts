@@ -13,7 +13,7 @@ const go = (emailId: string, notice: string) => {
   redirect(`/inbox/${emailId}?notice=${notice}`);
 };
 
-// Starts a reply: written by Claude when a key is set, otherwise a blank draft for the owner to write.
+// Starts a reply: written by the AI when a key is set, otherwise a blank draft for the owner to write.
 export async function writeReply(emailId: string, formData: FormData) {
   await requireAdmin();
   try {

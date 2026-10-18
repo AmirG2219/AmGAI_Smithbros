@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "ai:check": "npx tsx --env-file=.env.local scripts/ai-check.ts",
     "preview": "next build && next start -p 3001"
   },
   "dependencies": {

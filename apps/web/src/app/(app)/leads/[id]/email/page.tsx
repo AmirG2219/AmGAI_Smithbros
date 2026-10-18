@@ -18,8 +18,8 @@ const errors: Record<string, string> = {
   "no-email": "This lead has no email address.",
   demo: "Not sent: demo mode only allows emails to approved test addresses. Your text is kept below.",
   failed: "The email could not be sent. Your text is kept below. Please try again.",
-  "ai-off": "Claude drafting is off until an Anthropic API key is added.",
-  "ai-failed": "Claude couldn't write a draft just now. You can write it yourself.",
+  "ai-off": "AI drafting is off until an OpenAI API key is added.",
+  "ai-failed": "The AI couldn't write a draft just now. You can write it yourself.",
 };
 
 const templates: { key: TemplateKind; label: string }[] = [
@@ -61,7 +61,7 @@ export default async function ComposeEmail({
       )}
       {sp.ai && (
         <p className="mb-5 rounded-xl border border-gold/40 bg-gold/10 px-4 py-3 text-sm">
-          Claude wrote this draft. Read it and edit anything before you send.
+          AI wrote this draft. Read it and edit anything before you send.
         </p>
       )}
 
@@ -89,7 +89,7 @@ export default async function ComposeEmail({
               <input type="hidden" name="subject" value={subject} />
               <input type="hidden" name="body" value={body} />
               <div>
-                <label className={label} htmlFor="goal">Or let Claude write it</label>
+                <label className={label} htmlFor="goal">Or let AI write it</label>
                 <input
                   id="goal"
                   name="goal"
@@ -98,7 +98,7 @@ export default async function ComposeEmail({
                 />
               </div>
               <button className="inline-flex w-fit items-center gap-2 rounded-lg border border-bronze px-4 py-2 text-sm text-bronze hover:bg-bronze hover:text-cream">
-                <Sparkles size={15} /> Draft with Claude
+                <Sparkles size={15} /> Draft with AI
               </button>
             </form>
           )}

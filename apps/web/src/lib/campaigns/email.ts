@@ -4,7 +4,7 @@ import { brandHeader } from "@/lib/email/templates";
 const esc = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-// {{first_name}} and {{last_name}} are the only merge fields staff and Claude can use.
+// {{first_name}} and {{last_name}} are the only merge fields staff and the AI can use.
 export function mergeFields(text: string, c: { first_name: string; last_name: string | null }) {
   return text
     .replace(/\{\{\s*first_name\s*\}\}/g, c.first_name)

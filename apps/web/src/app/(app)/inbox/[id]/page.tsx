@@ -121,7 +121,7 @@ export default async function EmailDetail({
           ) : (
             <p className="text-sm text-muted">
               {e.analysis_status === "skipped"
-                ? "AI summaries are off until an Anthropic API key is added."
+                ? "AI summaries are off until an OpenAI API key is added."
                 : e.analysis_status === "failed"
                   ? "The summary could not be generated for this email."
                   : "Summary is being prepared…"}
@@ -231,7 +231,7 @@ export default async function EmailDetail({
                 <p className="text-sm text-muted">
                   {ai
                     ? "The assistant writes a draft using what we know about this customer and your standard answers. You approve it before anything is sent."
-                    : "Write a reply here. (AI drafting turns on once an Anthropic API key is added.) Nothing is sent until you approve it."}
+                    : "Write a reply here. (AI drafting turns on once an OpenAI API key is added.) Nothing is sent until you approve it."}
                 </p>
                 {ai && (
                   <div>

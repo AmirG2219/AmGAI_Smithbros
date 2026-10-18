@@ -156,7 +156,7 @@ export function ChatPanel({ enabled }: { enabled: boolean }) {
             <div className="flex-1 space-y-3 overflow-y-auto px-5 py-4" aria-live="polite">
               {!enabled ? (
                 <div className="rounded-xl border border-line bg-card p-4 text-sm text-muted">
-                  The chat turns on when an Anthropic API key is added to the app. Until then, everything else in the Email Assistant works.
+                  The chat turns on when an OpenAI API key is added to the app. Until then, everything else in the Email Assistant works.
                 </div>
               ) : turns.length === 0 ? (
                 <div>

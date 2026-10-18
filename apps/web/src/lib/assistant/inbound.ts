@@ -110,7 +110,7 @@ async function contextFor(db: SupabaseClient, contactId: string | null, projectI
 }
 
 export async function analyzeStoredEmail(db: SupabaseClient, id: string) {
-  if (!triageEnabled()) return; // stored as "skipped"; summaries are off until a Claude key is set
+  if (!triageEnabled()) return; // stored as "skipped"; summaries are off until an OpenAI key is set
   const { data: e } = await db
     .from("inbox_emails")
     .select("id, from_address, from_name, subject, body_text, contact_id, project_id")

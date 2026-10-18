@@ -26,7 +26,7 @@ export default async function Campaigns() {
         <p className="eyebrow mb-3">How campaigns work</p>
         <ol className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
           {[
-            ["1. Describe it", "Say who you want to reach and why. Claude can write the first draft, or you write it yourself."],
+            ["1. Describe it", "Say who you want to reach and why. AI can write the first draft, or you write it yourself."],
             ["2. Preview", "See how many people match, who is left out, and a sample email. Nothing is saved yet."],
             ["3. Review and approve", "Create the draft, check it, then approve the exact wording. Once approved it can't be changed."],
             ["4. Send", "Only people who gave permission get it, and each email has an unsubscribe link."],

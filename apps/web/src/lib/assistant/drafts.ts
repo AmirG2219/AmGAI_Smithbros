@@ -34,7 +34,7 @@ export async function loadThread(db: SupabaseClient, email: EmailRow): Promise<E
   return (data as EmailRow[] | null)?.length ? (data as EmailRow[]) : [email];
 }
 
-// Writes (or rewrites) the one open draft for an inbound email. With a Claude key the draft is grounded in our
+// Writes (or rewrites) the one open draft for an inbound email. With an OpenAI key the draft is grounded in our
 // records and the owner's standard answers; without one it is a blank reply for the owner to write.
 export async function createOrRefreshDraft(db: SupabaseClient, emailId: string, instruction?: string) {
   const { data: email } = await db.from("inbox_emails").select(COLUMNS).eq("id", emailId).single();
