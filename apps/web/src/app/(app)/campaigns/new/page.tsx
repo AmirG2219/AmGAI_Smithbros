@@ -94,9 +94,9 @@ export default async function NewCampaign({ searchParams }: { searchParams: Prom
   return (
     <div>
       <Link href="/campaigns" className="mb-4 inline-flex items-center gap-1 text-sm text-muted hover:text-walnut">
-        <ArrowLeft size={14} /> All campaigns
+        <ArrowLeft size={14} /> Marketing Emails
       </Link>
-      <PageHeader eyebrow="System 2" title="New campaign" />
+      <PageHeader eyebrow="Marketing Emails" title="New marketing email" />
       <p className="-mt-3 mb-5 max-w-3xl text-sm text-muted">
         Fill in the three parts below, then press Preview. You&apos;ll see who would receive it and a sample email.
         Nothing is saved or sent until you create the draft, and nothing goes out until it&apos;s approved.

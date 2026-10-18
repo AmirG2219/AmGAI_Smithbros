@@ -33,7 +33,7 @@ export default async function Leads({
 
   return (
     <div>
-      <PageHeader eyebrow="System 1" title="Leads" />
+      <PageHeader eyebrow="Sales" title="Leads" />
       <div className="mb-4 flex flex-wrap gap-2">
         {filters.map((x) => (
           <Link

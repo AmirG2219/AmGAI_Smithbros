@@ -56,9 +56,9 @@ export default async function CampaignDetail({
   return (
     <div>
       <Link href="/campaigns" className="mb-4 inline-flex items-center gap-1 text-sm text-muted hover:text-walnut">
-        <ArrowLeft size={14} /> All campaigns
+        <ArrowLeft size={14} /> Marketing Emails
       </Link>
-      <PageHeader eyebrow="Campaign" title={c.name}>
+      <PageHeader eyebrow="Marketing email" title={c.name}>
         <Pill kind="review">{c.status.replaceAll("_", " ")}</Pill>
       </PageHeader>
 

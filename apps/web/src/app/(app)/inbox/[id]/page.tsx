@@ -28,7 +28,7 @@ export default async function EmailDetail({ params }: { params: Promise<{ id: st
   return (
     <div>
       <Link href="/inbox" className="mb-4 inline-flex items-center gap-1 text-sm text-muted hover:text-walnut">
-        <ArrowLeft size={14} /> Inbox
+        <ArrowLeft size={14} /> Email Assistant
       </Link>
       <PageHeader eyebrow={`From ${e.from_name || e.from_address}`} title={e.subject || "(no subject)"}>
         {e.priority && <Pill kind={priorityPill[e.priority]}>{e.priority}</Pill>}

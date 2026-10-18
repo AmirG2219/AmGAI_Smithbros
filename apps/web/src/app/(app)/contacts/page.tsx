@@ -1,4 +1,6 @@
 import { consentByAddress } from "@/lib/campaigns/audience";
+import Link from "next/link";
+import { Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, PageHeader, Pill, td, th } from "../ui";
 import { recordConsent } from "./actions";
@@ -45,7 +47,8 @@ function Marketing({ id, status, hasEmail }: { id: string; status: Status; hasEm
   );
 }
 
-export default async function Contacts() {
+export default async function Contacts({ searchParams }: { searchParams: Promise<{ notice?: string }> }) {
+  const { notice } = await searchParams;
   const supabase = await createClient();
   const { data: contacts, error } = await supabase
     .from("contacts")
@@ -83,7 +86,17 @@ export default async function Contacts() {
 
   return (
     <div>
-      <PageHeader eyebrow="Customers" title="Contacts" />
+      <PageHeader eyebrow="Reference" title="Contacts">
+        <Link
+          href="/contacts/new"
+          className="inline-flex items-center gap-2 rounded-lg bg-walnut px-4 py-2.5 text-sm font-medium text-cream hover:bg-bronze"
+        >
+          <Plus size={16} /> Add contact
+        </Link>
+      </PageHeader>
+      {notice === "added" && (
+        <p className="mb-5 rounded-xl border border-gold/40 bg-gold/10 px-4 py-3 text-sm">Contact added.</p>
+      )}
       {error && <p className="mb-4 text-red-700">Could not load contacts.</p>}
 
       <div className="flex flex-col gap-3 md:hidden">

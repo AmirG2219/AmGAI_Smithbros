@@ -47,7 +47,7 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
 
   return (
     <div>
-      <PageHeader eyebrow="System 2 · Email assistant" title="Inbox" />
+      <PageHeader eyebrow="Inbox" title="Email Assistant" />
       <div className="mb-4 flex flex-wrap gap-2">
         {filters.map((x) => (
           <Link

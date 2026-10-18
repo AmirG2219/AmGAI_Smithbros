@@ -48,14 +48,11 @@ export default async function AppLayout({
             Command Centre
           </p>
         </div>
-        <p className="mb-2 px-3 text-[10px] uppercase tracking-[0.25em] text-cream/30">
-          Main
-        </p>
-        <Nav />
-        <form
-          action={signOut}
-          className="mt-auto flex items-center gap-3 border-t border-white/10 pt-4"
-        >
+        <Nav position="main" />
+        <div className="mt-auto border-t border-white/10 pt-4">
+          <Nav position="bottom" />
+        </div>
+        <form action={signOut} className="mt-4 flex items-center gap-3 border-t border-white/10 pt-4">
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-bronze font-medium">
             {me.display_name.slice(0, 1)}
           </div>

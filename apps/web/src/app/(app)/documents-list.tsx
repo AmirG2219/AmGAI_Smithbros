@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { ArrowLeft, Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, PageHeader, Pill } from "./ui";
 
@@ -13,13 +13,13 @@ type Row = {
 
 const META = {
   work_contract: {
-    eyebrow: "Work contracts",
+    eyebrow: "Documents",
     title: "Contracts",
     newLabel: "New contract",
     blurb: "The signed flooring contract for a job: scope, price, payment and schedule.",
   },
   policy_liability: {
-    eyebrow: "Policy & liability",
+    eyebrow: "Documents",
     title: "Agreements",
     newLabel: "New agreement",
     blurb: "The policy and liability agreement a client signs before work begins.",
@@ -44,6 +44,9 @@ export async function DocumentsList({ type, notice }: { type: DocType; notice?: 
 
   return (
     <div>
+      <Link href="/documents" className="mb-4 inline-flex items-center gap-1 text-sm text-muted hover:text-walnut">
+        <ArrowLeft size={14} /> Documents
+      </Link>
       <PageHeader eyebrow={m.eyebrow} title={m.title}>
         <Link
           href={`/documents/new?type=${type}`}

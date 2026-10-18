@@ -13,7 +13,7 @@ export default async function Campaigns() {
 
   return (
     <div>
-      <PageHeader eyebrow="System 2" title="Email campaigns">
+      <PageHeader eyebrow="Marketing" title="Marketing Emails">
         <Link
           href="/campaigns/new"
           className="inline-flex items-center gap-2 rounded-lg bg-walnut px-4 py-2.5 text-sm font-medium text-cream hover:bg-bronze"

@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ArrowLeft, FileSignature, FileText } from "lucide-react";
+import { redirect } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, PageHeader } from "../../ui";
 import { createDocumentAction } from "../actions";
@@ -26,34 +27,8 @@ export default async function NewDocument({
 }) {
   const { type, error } = await searchParams;
 
-  // Step 1: choose which document to create.
-  if (type !== "work_contract" && type !== "policy_liability") {
-    return (
-      <div>
-        <PageHeader eyebrow="New document" title="What do you want to create?" />
-        <div className="grid max-w-3xl gap-4 sm:grid-cols-2">
-          <Link href="/documents/new?type=work_contract">
-            <Card className="h-full p-6 hover:border-bronze">
-              <FileSignature className="mb-3 text-bronze" size={28} strokeWidth={1.5} />
-              <p className="font-serif text-2xl">Contract</p>
-              <p className="mt-1 text-sm text-muted">
-                The flooring contract for a job: scope of work, price, deposit, schedule and warranty.
-              </p>
-            </Card>
-          </Link>
-          <Link href="/documents/new?type=policy_liability">
-            <Card className="h-full p-6 hover:border-bronze">
-              <FileText className="mb-3 text-bronze" size={28} strokeWidth={1.5} />
-              <p className="font-serif text-2xl">Agreement</p>
-              <p className="mt-1 text-sm text-muted">
-                The policy and liability agreement the client signs before work begins.
-              </p>
-            </Card>
-          </Link>
-        </div>
-      </div>
-    );
-  }
+  // No document chosen: the Documents page is where that choice is made.
+  if (type !== "work_contract" && type !== "policy_liability") redirect("/documents");
 
   const isContract = type === "work_contract";
   const other = isContract ? "policy_liability" : "work_contract";
@@ -67,10 +42,10 @@ export default async function NewDocument({
 
   return (
     <div>
-      <Link href="/documents/new" className="mb-4 inline-flex items-center gap-1 text-sm text-muted hover:text-walnut">
-        <ArrowLeft size={14} /> Choose a different document
+      <Link href="/documents" className="mb-4 inline-flex items-center gap-1 text-sm text-muted hover:text-walnut">
+        <ArrowLeft size={14} /> Documents
       </Link>
-      <PageHeader eyebrow="New document" title={isContract ? "New contract" : "New agreement"}>
+      <PageHeader eyebrow="Documents" title={isContract ? "New contract" : "New agreement"}>
         <Link href={`/documents/new?type=${other}`} className="text-sm text-bronze hover:text-walnut">
           Switch to {isContract ? "an agreement" : "a contract"}
         </Link>
