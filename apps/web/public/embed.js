@@ -8,6 +8,10 @@
  */
 (function () {
   var script = document.currentScript;
+  if (!script) {
+    var all = document.querySelectorAll('script[src*="embed.js"]');
+    script = all[all.length - 1];
+  }
   if (!script) return;
   var origin = new URL(script.src).origin;
   var endpoint = script.getAttribute("data-endpoint") || origin + "/api/intake";
@@ -39,6 +43,7 @@
       ".err{color:#9b1c1c;font-size:14px;margin:14px 0 0}" +
       ".hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}" +
       ".done{text-align:center;padding:24px 0}.done h2{margin-bottom:8px}.done p{color:#8a7b6c;margin:0}" +
+      ".book{display:inline-block;margin-top:20px;padding:13px 22px;border-radius:8px;background:#211a16;color:#f5f0e8;text-decoration:none;font-weight:600}.book:hover{background:#a87d53}" +
       "@media(max-width:560px){.card{padding:20px}.grid{grid-template-columns:1fr}h2{font-size:26px}}" +
       "</style>" +
       '<div class="card"><form novalidate>' +
@@ -106,6 +111,16 @@
           if (!res.ok) throw new Error(res.body && res.body.error ? res.body.error : "Something went wrong");
           root.querySelector(".card").innerHTML =
             '<div class="done"><p class="eyebrow">Smith Bros Floors</p><h2>Thank you</h2><p>We have your request and will be in touch shortly.</p></div>';
+          var url = res.body && res.body.booking_url;
+          if (typeof url === "string" && /^https:\/\//.test(url)) {
+            var a = document.createElement("a");
+            a.className = "book";
+            a.textContent = "Book a free consultation";
+            a.setAttribute("href", url);
+            a.setAttribute("target", "_blank");
+            a.setAttribute("rel", "noopener");
+            root.querySelector(".done").appendChild(a);
+          }
         })
         .catch(function (ex) {
           err.textContent = ex.message || "We could not send your request. Please try again.";

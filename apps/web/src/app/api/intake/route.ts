@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
   try {
     const result = await processInquiry(parsed.value);
     // Do not echo internal ids or scores to the public.
-    return json({ ok: true, received: !result.duplicate }, 200);
+    return json({ ok: true, received: !result.duplicate, booking_url: process.env.CALENDLY_URL || null }, 200);
   } catch (e) {
     console.error("[intake] failed:", e);
     return json({ error: "We couldn't save your inquiry. Please try again." }, 500);

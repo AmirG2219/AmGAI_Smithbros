@@ -25,6 +25,10 @@ Use whichever matches how the site is built:
 
 Place it once per page. Leave the `id` as `smithbros-estimate-form`.
 
+## What visitors see
+1. The "Request a free estimate" form.
+2. After they submit: a thank-you message and, once Smith Bros has connected its booking calendar, a **Book a free consultation** button. The button appears automatically; nothing on the website needs to change.
+
 ## What we need from the agency
 1. The exact website address(es) the form will appear on, including both the `www` and non-`www` versions if both work (for example `https://www.example.com`). Smith Bros' developer adds these to an allowed list so the form is accepted from the site.
 2. Confirmation of which page it was placed on, so it can be tested together.
@@ -35,6 +39,11 @@ Place it once per page. Leave the `id` as `smithbros-estimate-form`.
 3. You should see a "Thank you" message. Tell Smith Bros so they can confirm the test lead arrived.
 
 If the form doesn't appear, check that the `<div>` and the `<script>` are both on the page, and that the browser console has no message about the script being blocked.
+
+Common causes on WordPress:
+- **Speed or caching plugins** (for example WP Rocket, Autoptimize, LiteSpeed) that delay, combine or defer scripts. Exclude `embed.js` from delay, combine and minify settings.
+- **A security plugin or Content Security Policy** that blocks scripts from other domains. Allow the Smith Bros app domain.
+- **Page editor changing the code.** Use a Custom HTML block rather than a text or paragraph block, so the quotes in the snippet are not turned into curly quotes.
 
 ## Good to know
 - The form works on phones and desktops without any extra styling.
