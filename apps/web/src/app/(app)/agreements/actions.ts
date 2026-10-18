@@ -40,6 +40,7 @@ export async function createAgreementsAction(formData: FormData) {
       exclusions: text(formData, "exclusions"),
       subtotal: Number.isFinite(subtotal) && subtotal > 0 ? subtotal : null,
       taxRatePercent: Number(formData.get("tax_rate") ?? 5) || 0,
+      depositPercent: Number(formData.get("deposit_percent") ?? 50),
       paymentTerms: text(formData, "payment_terms"),
       startDate: text(formData, "start_date"),
       completionEstimate: text(formData, "completion_estimate"),

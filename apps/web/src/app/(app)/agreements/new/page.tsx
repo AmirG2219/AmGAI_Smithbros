@@ -120,6 +120,9 @@ export default async function NewAgreement({
               <Field name="tax_rate" title="Tax rate %">
                 <input id="tax_rate" name="tax_rate" type="number" min="0" step="0.01" defaultValue="5" className={input} />
               </Field>
+              <Field name="deposit_percent" title="Deposit on signing %">
+                <input id="deposit_percent" name="deposit_percent" type="number" min="0" max="100" step="1" defaultValue="50" className={input} />
+              </Field>
               <Field name="start_date" title="Planned start">
                 <input id="start_date" name="start_date" type="date" className={input} />
               </Field>
@@ -127,14 +130,8 @@ export default async function NewAgreement({
                 <input id="completion_estimate" name="completion_estimate" placeholder="e.g. 2 weeks after start" className={input} />
               </Field>
             </div>
-            <Field name="payment_terms" title="Payment terms">
-              <textarea
-                id="payment_terms"
-                name="payment_terms"
-                rows={2}
-                defaultValue="50% deposit on signing, balance on completion."
-                className={input}
-              />
+            <Field name="payment_terms" title="Other payment terms (optional)">
+              <textarea id="payment_terms" name="payment_terms" rows={2} className={input} />
             </Field>
             <label className="mt-1 flex items-start gap-2 text-sm">
               <input type="checkbox" name="accepted" className="mt-1" />

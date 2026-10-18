@@ -15,6 +15,7 @@ export type AgreementInput = {
   exclusions: string | null;
   subtotal: number | null;
   taxRatePercent: number;
+  depositPercent: number;
   paymentTerms: string | null;
   startDate: string | null; // yyyy-mm-dd
   completionEstimate: string | null;
@@ -34,6 +35,8 @@ export async function createAgreements(
   input: AgreementInput,
 ): Promise<{ projectId: string; agreementIds: string[] }> {
   if (input.docs.length === 0) throw new UserError("Choose at least one document.");
+  if (!(input.depositPercent >= 0 && input.depositPercent <= 100))
+    throw new UserError("Deposit must be between 0 and 100 percent.");
 
   // ---- 1. Client and project -------------------------------------------------------------
   let projectId = input.projectId;
@@ -80,7 +83,7 @@ export async function createAgreements(
 
   const { data: project } = await db
     .from("projects")
-    .select("site_address_line1, site_city, site_region, site_postal_code, contacts(first_name, last_name)")
+    .select("site_address_line1, site_city, site_region, site_postal_code, contacts(first_name, last_name, email, phone)")
     .eq("id", projectId)
     .single();
   const contact = Array.isArray(project?.contacts) ? project?.contacts[0] : project?.contacts;
@@ -164,6 +167,8 @@ export async function createAgreements(
     company_name: "Smith Bros Floors",
     contract_date: longDate(new Date()),
     client_name: clientName,
+    client_email: contact?.email || "Not provided",
+    client_phone: contact?.phone || "Not provided",
     site_address: siteAddress,
   };
   const varsFor = (type: DocType): Record<string, string> =>
@@ -176,7 +181,12 @@ export async function createAgreements(
           subtotal: money(quote.subtotal),
           tax: money(quote.tax),
           total: money(cents(quote.subtotal + quote.tax)),
-          payment_terms: input.paymentTerms || "To be agreed.",
+          deposit_percent: String(input.depositPercent),
+          deposit_amount: money(cents(((quote.subtotal + quote.tax) * input.depositPercent) / 100)),
+          balance_amount: money(
+            cents((quote.subtotal + quote.tax) - cents(((quote.subtotal + quote.tax) * input.depositPercent) / 100)),
+          ),
+          payment_terms: input.paymentTerms || "No additional payment terms.",
           start_date: input.startDate
             ? longDate(new Date(`${input.startDate}T12:00:00`))
             : "To be confirmed",
