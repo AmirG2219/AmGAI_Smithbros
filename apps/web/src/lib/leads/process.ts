@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { priceEstimate, type PricingDefinition } from "./estimate";
 import type { Inquiry } from "./inquiry";
+import { notifyNewLead, type NotifyContext } from "./notify";
 import { scoreLead, type ScoringRules } from "./scoring";
 
 export type IntakeResult = {
@@ -51,6 +52,9 @@ export async function processInquiry(q: Inquiry): Promise<IntakeResult> {
     }
   };
 
+  let scoreInfo: NotifyContext["score"] = null;
+  let estimateInfo: NotifyContext["estimate"] = null;
+
   // The RPC stores the answers in additional_answers only; copy the key ones into columns for the dashboard.
   await step("project columns", async () => {
     const { error } = await db
@@ -76,6 +80,7 @@ export async function processInquiry(q: Inquiry): Promise<IntakeResult> {
     const args = rules
       ? (() => {
           const r = scoreLead(q, rules);
+          scoreInfo = { score: r.score, classification: r.classification };
           return {
             p_score: r.score,
             p_classification: r.classification,
@@ -131,7 +136,7 @@ export async function processInquiry(q: Inquiry): Promise<IntakeResult> {
       ? priceEstimate(q, rule.definition as PricingDefinition)
       : ({ priced: false, reason: "No pricing rule is available." } as const);
 
-    const { error } = await db.rpc(
+    const { data: recorded, error } = await db.rpc(
       "record_estimate_revision",
       result.priced && rule
         ? {
@@ -166,7 +171,18 @@ export async function processInquiry(q: Inquiry): Promise<IntakeResult> {
           },
     );
     if (error) throw error;
+    estimateInfo = {
+      id: recorded.estimate_id,
+      priced: result.priced,
+      min: result.priced ? result.price_min : undefined,
+      max: result.priced ? result.price_max : undefined,
+      isSample: rule?.is_placeholder ?? false,
+    };
   });
+
+  await step("notifications", () =>
+    notifyNewLead({ db, projectId, q, score: scoreInfo, estimate: estimateInfo }),
+  );
 
   return { project_id: projectId, duplicate: false, fully_processed: ok };
 }
