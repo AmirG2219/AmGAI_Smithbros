@@ -3,6 +3,7 @@ import { loadLeadForEmail } from "@/lib/leads/email-context";
 import { leadFacts } from "@/lib/leads/email-draft";
 import { allChecks, draftReply, lintDraft, replyAiEnabled, type ThreadMessage } from "./draft";
 import { loadKnowledge } from "./knowledge";
+import { loadLearning } from "./learning";
 
 type EmailRow = {
   id: string;
@@ -45,6 +46,7 @@ export async function createOrRefreshDraft(db: SupabaseClient, emailId: string, 
   const lead = e.project_id ? await loadLeadForEmail(db, e.project_id) : null;
   const facts = lead ? leadFacts(lead.ctx) : null;
   const knowledge = await loadKnowledge(db);
+  const learning = replyAiEnabled() ? await loadLearning(db) : undefined;
 
   let subject = rePrefix(e.subject);
   let body = `Hi ${firstName(e)},\n\n`;
@@ -67,6 +69,7 @@ export async function createOrRefreshDraft(db: SupabaseClient, emailId: string, 
       knowledge,
       instruction,
       bookingUrl: process.env.CALENDLY_URL || null,
+      learning,
     });
     // Everything the draft was allowed to rely on; anything else it states gets flagged.
     const sources = [

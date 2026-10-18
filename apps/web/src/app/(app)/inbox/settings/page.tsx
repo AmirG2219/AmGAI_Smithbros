@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { loadLearning } from "@/lib/assistant/learning";
 import { createClient } from "@/lib/supabase/server";
 import { Card, PageHeader } from "../../ui";
 import { addKnowledge, removeKnowledge, saveSignature } from "./actions";
@@ -47,6 +48,7 @@ export default async function AssistantSettings({ searchParams }: { searchParams
     .order("created_at", { ascending: true })
     .limit(300);
   const rows = (data ?? []) as Item[];
+  const learning = await loadLearning(supabase);
   const signature = rows.find((r) => r.kind === "signature");
   const of = (k: string) => rows.filter((r) => r.kind === k);
 
@@ -101,6 +103,33 @@ export default async function AssistantSettings({ searchParams }: { searchParams
             </div>
             <button className={small}>Add rule</button>
           </form>
+        </Card>
+
+        <Card className="p-5">
+          <p className="eyebrow mb-1">What it has learned from your edits</p>
+          <p className="mb-3 text-xs text-muted">
+            When you change a draft before sending, the assistant keeps your version and uses your recent edits as examples next time.
+          </p>
+          {learning.stats.sent === 0 ? (
+            <p className="text-sm text-muted">Nothing yet. Send a few replies and it will start picking up how you write.</p>
+          ) : (
+            <>
+              <p className="mb-3 text-sm">
+                You edited <b>{learning.stats.edited}</b> of your last <b>{learning.stats.sent}</b> sent replies.
+              </p>
+              {learning.lessons.map((l) => (
+                <details key={l.sentAt} className="mb-2 rounded-xl border border-line bg-white p-3 text-sm">
+                  <summary className="cursor-pointer text-muted">
+                    Edit from {new Date(l.sentAt).toLocaleDateString("en-CA", { month: "short", day: "numeric" })}
+                  </summary>
+                  <p className="mt-3 text-xs uppercase tracking-[0.15em] text-muted">The assistant wrote</p>
+                  <p className="whitespace-pre-wrap">{l.ai}</p>
+                  <p className="mt-3 text-xs uppercase tracking-[0.15em] text-muted">You sent</p>
+                  <p className="whitespace-pre-wrap">{l.final}</p>
+                </details>
+              ))}
+            </>
+          )}
         </Card>
 
         <Card className="p-5">

@@ -31,6 +31,7 @@ export async function proxy(request: NextRequest) {
     path.startsWith("/inquiry") ||
     path.startsWith("/api/intake") ||
     path.startsWith("/api/inbound") ||
+    path.startsWith("/api/assistant/digest") ||
     path.startsWith("/embed") ||
     path.startsWith("/unsubscribe") ||
     path.startsWith("/api/unsubscribe");

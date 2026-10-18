@@ -1,4 +1,5 @@
 import type { Knowledge } from "./knowledge";
+import type { Learning } from "./learning";
 
 export const replyAiEnabled = () => !!process.env.ANTHROPIC_API_KEY;
 const baseUrl = () => (process.env.ANTHROPIC_BASE_URL || "https://api.anthropic.com").replace(/\/$/, "");
@@ -15,7 +16,8 @@ export type ReplyDraft = { subject: string; body: string; needsInput: string[]; 
 const SYSTEM = `You draft email replies for the owner of Smith Bros Floors, a hardwood flooring company in Calgary, Alberta. A human reviews and approves every draft before anything is sent.
 
 How to write:
-- Match the owner's voice using <voice_samples>. Be warm, direct and brief.
+- Match the owner's voice using <voice_samples> and <owner_wrote_himself>. Be warm, direct and brief.
+- Study <owner_edits>: earlier drafts the owner changed before sending. Apply the same preferences (tone, length, phrasing, what he cuts or adds). Do not reuse the specific names, prices or dates from those examples.
 - Use ONLY facts found in <records> and <knowledge>, or stated in the owner's instruction. Never invent or guess prices, discounts, dates, times, availability, warranties or promises.
 - If the customer asks something you cannot answer from those sources, do not guess. Write a short holding reply and list each open question in needs_input so the owner can fill it in.
 - Obey every line in <rules>. If the email touches a restricted topic, write only a holding reply and add it to needs_input.
@@ -33,6 +35,7 @@ export async function draftReply(args: {
   knowledge: Knowledge;
   instruction?: string;
   bookingUrl: string | null;
+  learning?: Learning;
 }): Promise<ReplyDraft> {
   const model = process.env.ANTHROPIC_MODEL || "claude-sonnet-5-5";
   const k = args.knowledge;
@@ -47,6 +50,12 @@ export async function draftReply(args: {
     `<knowledge>\n${k.faqs.slice(0, 20).map((f) => `Q: ${f.title ?? "(general)"}\nA: ${clip(f.content, 600)}`).join("\n\n") || "(none provided)"}\n</knowledge>\n\n` +
     `<rules>\n${k.rules.map((r) => `- ${clip(r, 300)}`).join("\n") || "(none provided)"}\n</rules>\n\n` +
     `<voice_samples>\n${k.voices.slice(0, 5).map((v) => clip(v, 800)).join("\n\n---\n\n") || "(none provided)"}\n</voice_samples>\n\n` +
+    (args.learning?.ownerWritten.length
+      ? `<owner_wrote_himself>\n${args.learning.ownerWritten.join("\n\n---\n\n")}\n</owner_wrote_himself>\n\n`
+      : "") +
+    (args.learning?.lessons.length
+      ? `<owner_edits>\n${args.learning.lessons.map((l, i) => `[${i + 1}] The assistant wrote:\n${l.ai}\n\nThe owner sent:\n${l.final}`).join("\n\n---\n\n")}\n</owner_edits>\n\n`
+      : "") +
     `<email_thread>\n${thread}\n</email_thread>\n\n` +
     (args.instruction ? `The owner's instruction for this reply (trusted): ${clip(args.instruction, 500)}\n` : "Write a helpful reply.\n");
 

@@ -27,3 +27,11 @@ export const getMe = cache(async (): Promise<Me | null> => {
     .maybeSingle();
   return (data as Me | null) ?? null;
 });
+
+// The signed-in person's login email, read from their verified token.
+export const getEmail = cache(async (): Promise<string | null> => {
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+  const email = (data?.claims as { email?: string } | undefined)?.email;
+  return email ?? null;
+});

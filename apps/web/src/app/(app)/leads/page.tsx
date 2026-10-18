@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { findUnbookedLeads } from "@/lib/assistant/waiting";
 import { LEAD_COLUMNS, LeadsTable, type LeadRow } from "../leads-table";
 import { PageHeader } from "../ui";
 
@@ -9,6 +10,7 @@ const filters = [
   { key: "warm", label: "Warm" },
   { key: "cold", label: "Cold" },
   { key: "review", label: "Needs review" },
+  { key: "nobooking", label: "No booking yet" },
 ];
 
 export default async function Leads({
@@ -25,6 +27,11 @@ export default async function Leads({
     .order("created_at", { ascending: false })
     .limit(100);
   if (f === "review") query = query.eq("review_status", "needs_review");
+  else if (f === "nobooking") {
+    // Estimate emailed 3 or more days ago and no consultation yet.
+    const ids = (await findUnbookedLeads(supabase)).map((l) => l.id);
+    query = query.in("id", ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]);
+  }
   else if (["hot", "warm", "cold"].includes(f))
     query = query.eq("lead_classification", f);
 
