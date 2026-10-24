@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { HelpButton, type HelpConfig } from "./help";
 import { BookUser, FileStack, LayoutGrid, Mail, MoreHorizontal, Send, Users } from "lucide-react";
 
 type Item = {
@@ -72,7 +73,7 @@ export function Nav({ position }: { position: "main" | "bottom" }) {
 }
 
 // Bottom tab bar (phones): four main tabs plus a "More" sheet for the rest
-export function MobileNav() {
+export function MobileNav({ help }: { help: HelpConfig | null }) {
   const isActive = useActive();
   const [open, setOpen] = useState(false);
   const all = [...main, ...bottom];
@@ -96,6 +97,7 @@ export function MobileNav() {
               {i.label}
             </Link>
           ))}
+          {help && <HelpButton help={help} variant="sheet" />}
         </div>
       )}
       <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-white/10 bg-walnut pb-[env(safe-area-inset-bottom)] md:hidden">

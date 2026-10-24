@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getMe } from "@/lib/supabase/session";
 import { chatEnabled } from "@/lib/assistant/chat";
 import { ChatPanel } from "./chat-panel";
+import { supportConfig } from "@/lib/support";
+import { HelpButton } from "./help";
 import { MobileNav, Nav } from "./nav";
 
 async function signOut() {
@@ -20,6 +22,7 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   const me = await getMe();
+  const help = supportConfig();
   if (!me) redirect("/login");
 
   if (!me || me.role !== "admin") {
@@ -43,6 +46,7 @@ export default async function AppLayout({
         <Nav position="main" />
         <div className="mt-auto border-t border-white/10 pt-4">
           <Nav position="bottom" />
+          {help && <HelpButton help={help} variant="sidebar" />}
         </div>
         <form action={signOut} className="mt-4 flex items-center gap-3 border-t border-white/10 pt-4">
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-bronze font-medium">
@@ -73,7 +77,7 @@ export default async function AppLayout({
       <main className="min-w-0 flex-1 p-4 pb-24 sm:p-6 md:p-8 md:pb-8 lg:p-10">
         {children}
       </main>
-      <MobileNav />
+      <MobileNav help={help} />
       <ChatPanel enabled={chatEnabled()} />
     </div>
   );
