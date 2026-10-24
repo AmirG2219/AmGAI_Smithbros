@@ -4,6 +4,7 @@ import { SOURCE_LABELS, sourceLabel } from "@/lib/contacts/sources";
 import { createClient } from "@/lib/supabase/server";
 import { AddClient } from "./add-client";
 import { Card, PageHeader, Pill, td, th } from "../ui";
+import { Pager, pageOf, rangeOf } from "../pager";
 
 const date = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" });
 
@@ -13,9 +14,10 @@ const iconBtn = "inline-flex h-8 w-8 items-center justify-center rounded-lg bord
 export default async function Clients({
   searchParams,
 }: {
-  searchParams: Promise<{ notice?: string; q?: string; source?: string }>;
+  searchParams: Promise<{ notice?: string; q?: string; source?: string; p?: string }>;
 }) {
-  const { notice, q, source } = await searchParams;
+  const { notice, q, source, p } = await searchParams;
+  const page = pageOf(p);
   const supabase = await createClient();
 
   const term = (q ?? "").replace(/[%,()*\\]/g, " ").trim().slice(0, 60);
@@ -27,15 +29,10 @@ export default async function Clients({
   if (sourceFilter) query = query.eq("source", sourceFilter);
   if (term)
     query = query.or(`first_name.ilike.%${term}%,last_name.ilike.%${term}%,email.ilike.%${term}%,phone.ilike.%${term}%`);
-  // The list and the source choices are independent, so they load together.
-  const [{ data: contacts, count, error }, { data: used }] = await Promise.all([
-    query.order("created_at", { ascending: false }).limit(200),
-    supabase.from("contacts").select("source").limit(2000),
-  ]);
+  const [from, to] = rangeOf(page);
+  const { data: contacts, count, error } = await query.order("created_at", { ascending: false }).range(from, to);
   const rows = contacts ?? [];
 
-  // Offer the sources that actually exist, so the filter never lists an empty choice.
-  const sources = [...new Set((used ?? []).map((r) => r.source).filter(Boolean))] as string[];
   const filtered = !!(term || sourceFilter);
 
   return (
@@ -57,9 +54,9 @@ export default async function Clients({
         />
         <select name="source" defaultValue={sourceFilter} className="rounded-lg border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-bronze">
           <option value="">All sources</option>
-          {sources.map((s) => (
+          {Object.keys(SOURCE_LABELS).map((s) => (
             <option key={s} value={s}>
-              {SOURCE_LABELS[s] ?? sourceLabel(s)}
+              {SOURCE_LABELS[s]}
             </option>
           ))}
         </select>
@@ -73,7 +70,6 @@ export default async function Clients({
       <p className="mb-3 text-sm text-muted">
         {count ?? rows.length} client{(count ?? rows.length) === 1 ? "" : "s"}
         {filtered ? " match" : ""}
-        {(count ?? 0) > rows.length && `, showing the latest ${rows.length}`}
       </p>
 
       <div className="flex flex-col gap-3 md:hidden">
@@ -161,6 +157,14 @@ export default async function Clients({
           </tbody>
         </table>
       </Card>
+      <Pager
+        page={page}
+        total={count ?? 0}
+        hrefFor={(pg) => {
+          const qs = new URLSearchParams({ ...(term ? { q: term } : {}), ...(sourceFilter ? { source: sourceFilter } : {}), ...(pg > 1 ? { p: String(pg) } : {}) }).toString();
+          return qs ? `/contacts?${qs}` : "/contacts";
+        }}
+      />
     </div>
   );
 }

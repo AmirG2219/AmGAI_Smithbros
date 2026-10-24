@@ -3,6 +3,7 @@ import { ArrowLeft, Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { defaultMessage, DOC_LABEL } from "@/lib/agreements/send";
 import { Card, PageHeader, Pill } from "./ui";
+import { Pager, pageOf, rangeOf } from "./pager";
 import { sendDocumentAction } from "./documents/actions";
 import { SendDocument } from "./send-document";
 
@@ -51,12 +52,15 @@ export async function DocumentsList({
   notice,
   q,
   status,
+  p,
 }: {
   type: DocType;
   notice?: string;
   q?: string;
   status?: string;
+  p?: string;
 }) {
+  const page = pageOf(p);
   const m = META[type];
   const supabase = await createClient();
   const term = (q ?? "").replace(/[%,()*\\]/g, " ").trim().slice(0, 60);
@@ -79,11 +83,13 @@ export async function DocumentsList({
     .from("agreements")
     .select(
       "id, status, created_at, sent_at, projects(contacts(first_name, last_name, email)), agreement_documents(id, document_kind)",
+      { count: "exact" },
     )
     .eq("document_type", type);
   if (statusFilter) query = query.eq("status", statusFilter);
   if (projectIds) query = query.in("project_id", projectIds);
-  const { data } = await query.order("created_at", { ascending: false }).limit(100);
+  const [from, to] = rangeOf(page);
+  const { data, count } = await query.order("created_at", { ascending: false }).range(from, to);
   const rows = (data ?? []) as unknown as Row[];
 
   return (
@@ -173,6 +179,15 @@ export async function DocumentsList({
           })}
         </div>
       )}
+      <Pager
+        page={page}
+        total={count ?? 0}
+        hrefFor={(pg) => {
+          const qs = new URLSearchParams({ ...(term ? { q: term } : {}), ...(statusFilter ? { status: statusFilter } : {}), ...(pg > 1 ? { p: String(pg) } : {}) }).toString();
+          const base = type === "work_contract" ? "/contracts" : "/agreements";
+          return qs ? `${base}?${qs}` : base;
+        }}
+      />
     </div>
   );
 }

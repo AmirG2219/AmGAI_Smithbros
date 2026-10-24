@@ -1,17 +1,17 @@
 import Link from "next/link";
-import { CalendarClock, Newspaper, Settings2 } from "lucide-react";
-import { findUnbookedLeads, findWaitingOnCustomers } from "@/lib/assistant/waiting";
+import { CalendarClock } from "lucide-react";
+import { findWaitingOnCustomers } from "@/lib/assistant/waiting";
 import { createClient } from "@/lib/supabase/server";
 import { Card, PageHeader, Pill } from "../ui";
+import { PAGE_SIZE, Pager, pageOf, rangeOf } from "../pager";
 import { draftFollowUp } from "./actions";
 
-const filters = [
+// Three places, each answering one question: what do I owe a reply to, who owes me one, and what is finished.
+const TABS = [
   { key: "reply", label: "Needs reply" },
-  { key: "drafts", label: "Drafts ready" },
   { key: "waiting", label: "Waiting on customer" },
-  { key: "open", label: "All open" },
-  { key: "handled", label: "Handled" },
-];
+  { key: "done", label: "Done" },
+] as const;
 
 const priorityPill: Record<string, string> = { urgent: "hot", high: "warm", normal: "cold", low: "cold" };
 const pretty = (s: string) => s.replaceAll("_", " ");
@@ -34,84 +34,76 @@ type Row = {
   email_drafts: { status: string }[];
 };
 
-function Tile({ n, label, href }: { n: number; label: string; href: string }) {
-  return (
-    <Link href={href}>
-      <Card className="p-4 transition-colors hover:border-bronze">
-        <p className="font-serif text-3xl leading-none">{n}</p>
-        <p className="mt-2 text-xs text-muted">{label}</p>
-      </Card>
-    </Link>
-  );
-}
-
-export default async function InboxPage({ searchParams }: { searchParams: Promise<{ f?: string; notice?: string }> }) {
-  const { f = "reply", notice } = await searchParams;
+export default async function InboxPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ f?: string; p?: string; notice?: string }>;
+}) {
+  const sp = await searchParams;
+  const f = TABS.some((t) => t.key === sp.f) ? (sp.f as (typeof TABS)[number]["key"]) : "reply";
+  const page = pageOf(sp.p);
+  const notice = sp.notice;
   const supabase = await createClient();
 
-  // The list is built first and loads in the same batch as the counts, so the page waits for one round trip, not two.
+  // One batch to the database: the badge counts, the waiting list, and this tab's page of emails.
+  // "Needs reply" includes emails the AI has not looked at yet (needs_reply unknown), so nothing is hidden while AI is off.
+  const needsReplyCount = supabase
+    .from("inbox_emails")
+    .select("id", { count: "exact", head: true })
+    .eq("direction", "inbound")
+    .eq("status", "open")
+    .or("needs_reply.is.null,needs_reply.eq.true");
+
   let list = null;
   if (f !== "waiting") {
     let q = supabase
       .from("inbox_emails")
       .select(
-        `id, from_address, from_name, subject, body_text, received_at, analysis_status, category, priority, needs_reply, summary, contact_id, project_id, email_drafts${f === "drafts" ? "!inner" : ""}(status)`,
+        "id, from_address, from_name, subject, body_text, received_at, analysis_status, category, priority, needs_reply, summary, contact_id, project_id, email_drafts(status)",
+        { count: "exact" },
       )
-      .eq("direction", "inbound")
-      .order("received_at", { ascending: false })
-      .limit(100);
-    if (f === "handled") q = q.in("status", ["handled", "archived"]);
-    else q = q.eq("status", "open");
-    if (f === "reply") q = q.eq("needs_reply", true);
-    if (f === "drafts") q = q.in("email_drafts.status", OPEN_DRAFT);
-    list = q;
+      .eq("direction", "inbound");
+    q =
+      f === "reply"
+        ? q.eq("status", "open").or("needs_reply.is.null,needs_reply.eq.true")
+        : q.or("status.in.(handled,archived),and(status.eq.open,needs_reply.eq.false)");
+    const [from, to] = rangeOf(page);
+    list = q.order("received_at", { ascending: false }).range(from, to);
   }
 
-  // The strip at the top: what needs you, at a glance.
-  const [needReply, draftsReady, waiting, unbooked, res] = await Promise.all([
-    supabase.from("inbox_emails").select("id", { count: "exact", head: true }).eq("direction", "inbound").eq("status", "open").eq("needs_reply", true).then((r) => r.count ?? 0),
-    supabase.from("email_drafts").select("id", { count: "exact", head: true }).in("status", OPEN_DRAFT).then((r) => r.count ?? 0),
+  const [replyBadge, waitingAll, res] = await Promise.all([
+    needsReplyCount.then((r) => r.count ?? 0),
     findWaitingOnCustomers(supabase),
-    findUnbookedLeads(supabase),
     list,
   ]);
   const error = !!res?.error;
   const rows = (res?.data ?? []) as unknown as Row[];
+  const total = res?.count ?? 0;
+  const waiting = waitingAll.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const badge: Record<string, number> = { reply: replyBadge, waiting: waitingAll.length };
+  const href = (key: string, p = 1) => `/inbox?${new URLSearchParams({ ...(key === "reply" ? {} : { f: key }), ...(p > 1 ? { p: String(p) } : {}) })}`.replace(/\?$/, "");
 
   return (
     <div>
-      <PageHeader eyebrow="Inbox" title="Email Assistant">
-        <div className="flex flex-wrap gap-2">
-          <Link href="/inbox/digest" className="inline-flex items-center gap-2 rounded-lg border border-line px-4 py-2.5 text-sm hover:border-bronze">
-            <Newspaper size={16} /> Morning brief
-          </Link>
-          <Link href="/inbox/settings" className="inline-flex items-center gap-2 rounded-lg border border-line px-4 py-2.5 text-sm hover:border-bronze">
-            <Settings2 size={16} /> Teach the assistant
-          </Link>
-        </div>
-      </PageHeader>
+      <PageHeader eyebrow="Inbox" title="Email Assistant" />
 
       {notice === "drafted" && (
         <p className="mb-4 rounded-xl border border-gold/40 bg-gold/10 px-4 py-3 text-sm">Follow-up draft ready. Open it to review.</p>
       )}
 
-      <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Tile n={needReply} label="Need a reply" href="/inbox" />
-        <Tile n={draftsReady} label="Drafts ready to approve" href="/inbox?f=drafts" />
-        <Tile n={waiting.length} label="Waiting on customers" href="/inbox?f=waiting" />
-        <Tile n={unbooked.length} label="Estimates, no booking yet" href="/leads?f=nobooking" />
-      </div>
-
       <div className="mb-4 flex flex-wrap gap-2">
-        {filters.map((x) => (
+        {TABS.map((t) => (
           <Link
-            key={x.key}
-            href={x.key === "reply" ? "/inbox" : `/inbox?f=${x.key}`}
-            className={`rounded-full border px-4 py-1.5 text-sm ${
-              f === x.key ? "border-walnut bg-walnut text-cream" : "border-line bg-card text-muted hover:text-walnut"
+            key={t.key}
+            href={href(t.key)}
+            className={`inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm ${
+              f === t.key ? "border-walnut bg-walnut text-cream" : "border-line bg-card text-muted hover:text-walnut"
             }`}
           >
-            {x.label}
+            {t.label}
+            {badge[t.key] > 0 && (
+              <span className={`rounded-full px-1.5 text-xs ${f === t.key ? "bg-cream/20" : "bg-line"}`}>{badge[t.key]}</span>
+            )}
           </Link>
         ))}
       </div>
@@ -145,7 +137,7 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
         )
       ) : rows.length === 0 ? (
         <Card className="px-6 py-10 text-center text-sm text-muted">
-          {f === "reply" ? "Nothing needs a reply right now." : f === "drafts" ? "No drafts are waiting for you." : "No emails here."}
+          {f === "reply" ? "Nothing needs a reply right now." : "Nothing here yet."}
         </Card>
       ) : (
         <div className="grid gap-3">
@@ -182,6 +174,7 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
           ))}
         </div>
       )}
+      <Pager page={page} total={f === "waiting" ? waitingAll.length : total} hrefFor={(p) => href(f, p)} />
     </div>
   );
 }

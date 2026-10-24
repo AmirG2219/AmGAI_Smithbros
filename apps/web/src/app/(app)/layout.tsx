@@ -3,8 +3,6 @@ import Image from "next/image";
 import { LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getMe } from "@/lib/supabase/session";
-import { chatEnabled } from "@/lib/assistant/chat";
-import { ChatPanel } from "./chat-panel";
 import { supportConfig } from "@/lib/support";
 import { HelpButton } from "./help";
 import { MobileNav, Nav } from "./nav";
@@ -78,7 +76,6 @@ export default async function AppLayout({
         {children}
       </main>
       <MobileNav help={help} />
-      <ChatPanel enabled={chatEnabled()} />
     </div>
   );
 }

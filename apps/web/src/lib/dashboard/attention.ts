@@ -27,7 +27,7 @@ export async function loadAttention(db: SupabaseClient): Promise<Attention> {
       .select("id, from_name, from_address, subject, priority")
       .eq("direction", "inbound")
       .eq("status", "open")
-      .eq("needs_reply", true)
+      .or("needs_reply.is.null,needs_reply.eq.true")
       .order("received_at", { ascending: false })
       .limit(40),
     db
