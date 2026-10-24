@@ -7,8 +7,8 @@ const nextConfig: NextConfig = {
   devIndicators: false,
   // Development only: print every database request with its time, to see where a slow page spends its time.
   logging: { fetches: { fullUrl: false } },
-  // Keeps a visited page for 20 seconds so going back or revisiting is instant. Saving something refreshes it.
-  experimental: { staleTimes: { dynamic: 20 } },
+  // Keeps a visited or pre-loaded page for a minute so clicking around is instant. Saving something refreshes it.
+  experimental: { staleTimes: { dynamic: 60 } },
   // The website widget loads these fonts from other domains, which browsers only allow with this header.
   async headers() {
     return [

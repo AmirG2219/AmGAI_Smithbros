@@ -46,6 +46,7 @@ export function Nav({ position }: { position: "main" | "bottom" }) {
           <Link
             key={i.href}
             href={i.href}
+            prefetch
             className={`group relative flex items-center gap-3 overflow-hidden rounded-xl px-3 py-2.5 text-sm transition-all duration-200 ease-out ${
               active
                 ? "bg-bronze/20 text-gold"
@@ -105,6 +106,7 @@ export function MobileNav({ help }: { help: HelpConfig | null }) {
           <Link
             key={i.href}
             href={i.href}
+            prefetch
             onClick={() => setOpen(false)}
             className={`flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] transition-colors duration-150 active:bg-white/5 ${
               isActive(i) ? "text-gold" : "text-cream/60"

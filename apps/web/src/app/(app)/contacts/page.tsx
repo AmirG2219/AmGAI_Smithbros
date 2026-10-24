@@ -1,3 +1,4 @@
+import { FastLink } from "../fast-link";
 import Link from "next/link";
 import { Mail, Phone } from "lucide-react";
 import { SOURCE_LABELS, sourceLabel } from "@/lib/contacts/sources";
@@ -76,9 +77,9 @@ export default async function Clients({
         {rows.map((c) => (
           <Card key={c.id} className="p-4">
             <div className="flex items-start justify-between gap-3">
-              <Link href={`/contacts/${c.id}`} className="font-medium hover:text-bronze">
+              <FastLink href={`/contacts/${c.id}`} className="font-medium hover:text-bronze">
                 {c.first_name} {c.last_name}
-              </Link>
+              </FastLink>
               <Pill kind="review">{sourceLabel(c.source)}</Pill>
             </div>
             <p className="text-sm text-muted">{c.email ?? "—"}</p>
@@ -120,9 +121,9 @@ export default async function Clients({
             {rows.map((c) => (
               <tr key={c.id} className="border-b border-line last:border-0">
                 <td className={`${td} font-medium`}>
-                  <Link href={`/contacts/${c.id}`} className="hover:text-bronze">
+                  <FastLink href={`/contacts/${c.id}`} className="hover:text-bronze">
                     {c.first_name} {c.last_name}
-                  </Link>
+                  </FastLink>
                 </td>
                 <td className={`${td} text-muted`}>{c.email ?? "—"}</td>
                 <td className={`${td} text-muted`}>{c.phone ?? "—"}</td>
