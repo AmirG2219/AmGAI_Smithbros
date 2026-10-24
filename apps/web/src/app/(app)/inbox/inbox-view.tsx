@@ -3,17 +3,16 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, CalendarClock, Check, ChevronDown, Mail, Send, Sparkles, X } from "lucide-react";
-import { Card, Pill } from "../ui";
+import { AlertTriangle, CalendarClock, Check, ChevronDown, Download, Mail, Paperclip, RefreshCw, Search, Send, Sparkles, X } from "lucide-react";
+import { Card } from "../ui";
 import { Pager } from "../pager";
-import { discardDraft, ensureDraft, followUp, getPanel, saveDraft, sendDraft, setEmailStatus, writeDraft } from "./actions";
-import { OPEN_DRAFT, type DraftT, type EmailT, type MsgT, type PanelData, type WaitingT } from "./types";
+import { discardDraft, ensureDraft, followUp, getPanel, mailPulse, markRead, saveDraft, sendDraft, setEmailStatus, writeDraft } from "./actions";
+import { categoryOf, priorityOf } from "./style";
+import { OPEN_DRAFT, type AttachT, type DraftT, type EmailT, type MsgT, type PanelData, type WaitingT } from "./types";
 
 // The inbox lives in the browser: the list, every email's details and its draft are loaded once, so opening an email,
 // switching between emails and closing one are instant. Only saving, sending and rewriting talk to the server.
 
-const priorityPill: Record<string, string> = { urgent: "hot", high: "warm", normal: "cold", low: "cold" };
-const pretty = (s: string) => s.replaceAll("_", " ");
 const input = "w-full rounded-lg border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-bronze";
 const lbl = "mb-1 block text-xs font-medium uppercase tracking-[0.15em] text-muted";
 const btn = "inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium transition-colors disabled:opacity-60";
@@ -46,7 +45,9 @@ export type TabT = { key: string; label: string; count: number; href: string };
 type Props = {
   rows: EmailT[];
   waiting: WaitingT[];
-  tab: string;
+  tab: string; // reply, waiting, done, or search
+  query: string;
+  unread: number;
   tabs: TabT[];
   page: number;
   total: number;
@@ -57,6 +58,57 @@ type Props = {
   connected: boolean;
   loadError: boolean;
 };
+
+const kb = (n: number) => (n >= 1_048_576 ? `${(n / 1_048_576).toFixed(1)} MB` : n >= 1024 ? `${Math.round(n / 1024)} KB` : `${n} B`);
+const RISKY = /\.(exe|scr|bat|cmd|com|msi|jar|js|vbs|ps1|lnk|iso)$/i;
+
+// The files that came with an email. Each downloads; none is ever opened in the browser.
+function Attachments({ files }: { files: AttachT[] }) {
+  if (files.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-2">
+      {files.map((f) => {
+        const risky = RISKY.test(f.filename);
+        const body = (
+          <>
+            <Paperclip size={14} className="shrink-0" />
+            <span className="max-w-[16rem] truncate">{f.filename}</span>
+            <span className="text-xs text-muted">{kb(f.size_bytes)}</span>
+            {risky && <span className="rounded bg-[#F8E1DB] px-1.5 text-xs text-[#A23A25]">Be careful</span>}
+            {f.stored !== false && <Download size={14} className="shrink-0 text-bronze" />}
+          </>
+        );
+        return f.stored === false ? (
+          <span key={f.id} title="This file was too large to save" className="inline-flex items-center gap-2 rounded-lg border border-dashed border-line px-3 py-2 text-sm text-muted">
+            {body}
+          </span>
+        ) : (
+          <a key={f.id} href={`/api/inbox/attachments/${f.id}`} className="inline-flex items-center gap-2 rounded-lg border border-line bg-white px-3 py-2 text-sm transition-colors hover:border-bronze">
+            {body}
+          </a>
+        );
+      })}
+    </div>
+  );
+}
+
+// A formatted email, shown in a sealed frame: no scripts run, no pictures or fonts load from the internet (so senders
+// cannot see that you opened it), and links open in a new tab.
+function HtmlBody({ html }: { html: string }) {
+  const doc =
+    '<!doctype html><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src \'unsafe-inline\'; img-src data:; font-src data:">' +
+    '<base target="_blank"><style>body{font:14px/1.55 Arial,Helvetica,sans-serif;color:#211a16;margin:14px;overflow-wrap:anywhere}img{max-width:100%;height:auto}table{max-width:100%}a{color:#8a5f2b}</style>' +
+    html;
+  return (
+    <iframe
+      title="Email"
+      sandbox="allow-popups allow-popups-to-escape-sandbox"
+      srcDoc={doc}
+      referrerPolicy="no-referrer"
+      className="h-[26rem] w-full rounded-lg border border-line bg-white"
+    />
+  );
+}
 
 function Skeleton() {
   return (
@@ -178,7 +230,7 @@ function Composer({
 }
 
 export function InboxView(props: Props) {
-  const { rows, waiting, tab, tabs, page, total, listHref, pageLinks, ai, connected, loadError } = props;
+  const { rows, waiting, tab, query, tabs, page, total, listHref, pageLinks, ai, connected, loadError } = props;
   const router = useRouter();
   const [pending, start] = useTransition();
 
@@ -195,13 +247,20 @@ export function InboxView(props: Props) {
   const [statusOf, setStatusOf] = useState<Record<string, string>>({});
   const [autoState, setAutoState] = useState<Record<string, "done" | "failed">>({});
   const [notice, setNotice] = useState<string | null>(null);
+  const [readOf, setReadOf] = useState<Record<string, true>>({});
+  const [newMail, setNewMail] = useState(false);
+  const [showPlain, setShowPlain] = useState(false);
   const started = useRef(new Set<string>());
+  const baseline = useRef<{ latest: string | null } | null>(null);
 
   // ---- opening and closing: instant, the address bar follows ----
   const urlFor = (id: string | null) => (id ? `${listHref}${listHref.includes("?") ? "&" : "?"}e=${id}` : listHref);
   const open = (id: string) => {
     setSelected(id);
     setNotice(null);
+    setShowPlain(false);
+    setReadOf((m) => ({ ...m, [id]: true }));
+    void markRead(id);
     window.history.pushState(null, "", urlFor(id));
   };
   const close = () => {
@@ -213,6 +272,37 @@ export function InboxView(props: Props) {
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
+
+  // Every 20 seconds (while this tab is on screen) check whether new mail has arrived.
+  // With nothing open, the list refreshes by itself; otherwise a small notice offers the refresh, so nothing jumps under you.
+  const idle = !selected;
+  useEffect(() => {
+    const check = async () => {
+      if (document.hidden) return;
+      try {
+        const p = await mailPulse();
+        if (!baseline.current) {
+          baseline.current = { latest: p.latest };
+          return;
+        }
+        if (p.latest !== baseline.current.latest) {
+          baseline.current = { latest: p.latest };
+          if (idle && !query) router.refresh();
+          else setNewMail(true);
+        }
+      } catch {
+        /* offline or signed out: try again next time */
+      }
+    };
+    void check();
+    const t = setInterval(check, 20_000);
+    return () => clearInterval(t);
+  }, [idle, query, router]);
+
+  // An email opened from a link or the address bar counts as read too.
+  useEffect(() => {
+    if (props.initialSelected) void markRead(props.initialSelected);
+  }, [props.initialSelected]);
 
   // In the background, fetch the conversation (and the email itself, if it is not on this page).
   useEffect(() => {
@@ -299,7 +389,7 @@ export function InboxView(props: Props) {
       setNotice(r.notice ?? null);
     });
 
-  const shown = rows.filter((r) => (statusOf[r.id] ?? r.status) === r.status || tab === "done");
+  const shown = rows.filter((r) => (statusOf[r.id] ?? r.status) === r.status || tab !== "reply");
   const c = email?.contacts ?? null;
   const sender = email ? email.from_name || email.from_address : "";
   const messages: MsgT[] = thread.length ? thread : email ? [email as unknown as MsgT] : [];
@@ -309,6 +399,40 @@ export function InboxView(props: Props) {
   return (
     <div>
       {/* On a phone, an open email takes the whole screen; on a computer the list and the email sit side by side. */}
+      <div className={`mb-3 flex-wrap items-center gap-3 ${selected ? "hidden lg:flex" : "flex"}`}>
+        <form action="/inbox" className="relative min-w-0 flex-1 sm:max-w-sm">
+          <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+          <input
+            name="q"
+            defaultValue={query}
+            placeholder="Search all mail"
+            aria-label="Search all mail"
+            className="w-full rounded-full border border-line bg-white py-2 pl-9 pr-9 text-sm outline-none focus:border-bronze"
+          />
+          {query && (
+            <Link href="/inbox" aria-label="Clear search" className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted hover:text-walnut">
+              <X size={14} />
+            </Link>
+          )}
+        </form>
+        {props.unread > 0 && <span className="text-xs text-muted">{props.unread} unread</span>}
+        {newMail && (
+          <button
+            onClick={() => {
+              setNewMail(false);
+              router.refresh();
+            }}
+            className="inline-flex items-center gap-2 rounded-full bg-gold/20 px-4 py-1.5 text-sm text-walnut transition-colors hover:bg-gold/30"
+          >
+            <RefreshCw size={14} /> New mail arrived. Show it
+          </button>
+        )}
+      </div>
+      {query && (
+        <p className={`mb-3 text-sm text-muted ${selected ? "hidden lg:block" : ""}`}>
+          {total} result{total === 1 ? "" : "s"} for &ldquo;{query}&rdquo; in all mail
+        </p>
+      )}
       <div className={`mb-4 flex-wrap gap-2 ${selected ? "hidden lg:flex" : "flex"}`}>
         {tabs.map((t) => (
           <Link
@@ -357,25 +481,40 @@ export function InboxView(props: Props) {
               {shown.map((e) => {
                 const ds = draftsOf[e.id] ?? e.email_drafts;
                 const draftReady = ds?.some((d) => OPEN_DRAFT.includes(d.status));
+                const unread = !e.read_at && !readOf[e.id];
+                const pr = priorityOf(e.priority);
+                const cat = categoryOf(e.category);
                 return (
                   <button key={e.id} onClick={() => open(e.id)} className="block w-full text-left">
                     <Card
-                      className={`p-4 transition-colors hover:border-bronze ${selected === e.id ? "border-bronze bg-cream/60" : ""} ${
+                      className={`relative overflow-hidden p-4 pl-5 transition-colors before:absolute before:inset-y-0 before:left-0 before:w-1 hover:border-bronze ${pr.edge} ${
+                        selected === e.id ? "border-bronze bg-cream/60" : ""
+                      } ${unread ? "bg-white" : ""} ${
                         selected ? "" : "lg:grid lg:grid-cols-[220px_minmax(0,1fr)_auto] lg:items-center lg:gap-x-6 lg:px-5 lg:py-3.5"
                       }`}
                     >
                       <div className={`flex items-center justify-between gap-2 ${selected ? "" : "lg:block"}`}>
-                        <p className="truncate font-medium">{e.from_name || e.from_address}</p>
+                        <p className={`flex min-w-0 items-center gap-2 truncate ${unread ? "font-semibold" : "font-medium"}`}>
+                          {unread && <span aria-label="Unread" className="h-2 w-2 shrink-0 rounded-full bg-bronze" />}
+                          <span className="truncate">{e.from_name || e.from_address}</span>
+                        </p>
                         <span className={`shrink-0 text-xs text-muted ${selected ? "" : "lg:hidden"}`} suppressHydrationWarning>{short(e.received_at)}</span>
                       </div>
                       <div className="min-w-0">
-                        <p className="mt-0.5 truncate text-sm lg:mt-0">{e.subject || "(no subject)"}</p>
+                        <p className={`mt-0.5 truncate text-sm lg:mt-0 ${unread ? "font-semibold" : ""}`}>{e.subject || "(no subject)"}</p>
                         <p className="mt-1 line-clamp-2 text-xs text-muted lg:line-clamp-1">{e.summary ?? e.body_text.replace(/\s+/g, " ").slice(0, 160)}</p>
                       </div>
                       <span className={`hidden shrink-0 text-xs text-muted ${selected ? "" : "lg:block"}`} suppressHydrationWarning>{short(e.received_at)}</span>
                       <div className={`mt-2 flex flex-wrap items-center gap-1.5 ${selected ? "" : "lg:col-start-1 lg:row-start-2 lg:mt-1"}`}>
-                        {e.priority && e.priority !== "normal" && e.priority !== "low" && <Pill kind={priorityPill[e.priority]}>{e.priority}</Pill>}
-                        {e.category && <span className="text-xs capitalize text-muted">{pretty(e.category)}</span>}
+                        {(e.priority === "urgent" || e.priority === "high") && (
+                          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${pr.chip}`}>{pr.label}</span>
+                        )}
+                        {cat && <span className={`rounded-full px-2 py-0.5 text-xs ${cat.chip}`}>{cat.label}</span>}
+                        {e.inbox_attachments?.length > 0 && (
+                          <span className="inline-flex items-center gap-1 text-xs text-muted">
+                            <Paperclip size={12} /> {e.inbox_attachments.length}
+                          </span>
+                        )}
                         {e.analysis_status === "pending" && <span className="text-xs text-muted">Analyzing…</span>}
                         {draftReady && <span className="rounded-full bg-gold/15 px-2 py-0.5 text-xs text-bronze">Draft ready</span>}
                       </div>
@@ -419,8 +558,10 @@ export function InboxView(props: Props) {
                 <h2 className="mt-4 font-serif text-2xl leading-tight">{email.subject || "(no subject)"}</h2>
 
                 <div className="mt-3 flex flex-wrap items-center gap-2">
-                  {email.priority && <Pill kind={priorityPill[email.priority]}>{email.priority}</Pill>}
-                  {email.category && <span className="rounded-full bg-line px-3 py-1 text-xs capitalize">{pretty(email.category)}</span>}
+                  {email.priority && email.priority !== "normal" && email.priority !== "low" && (
+                    <span className={`rounded-full px-3 py-1 text-xs font-medium ${priorityOf(email.priority).chip}`}>{priorityOf(email.priority).label}</span>
+                  )}
+                  {categoryOf(email.category) && <span className={`rounded-full px-3 py-1 text-xs ${categoryOf(email.category)!.chip}`}>{categoryOf(email.category)!.label}</span>}
                   {email.needs_reply === false && <span className="rounded-full bg-line px-3 py-1 text-xs">No reply needed</span>}
                   {c && (
                     <Link href={`/contacts/${c.id}`} className="rounded-full border border-bronze/40 px-3 py-1 text-xs text-bronze hover:bg-bronze hover:text-cream">
@@ -479,7 +620,29 @@ export function InboxView(props: Props) {
                       </div>
                     </details>
                   )}
-                  {latest && <MessageCard m={latest} />}
+                  {latest && email.body_html && !showPlain && latest.id === email.id ? (
+                    <div className="grid gap-2">
+                      <HtmlBody html={email.body_html} />
+                      <p className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
+                        <span>Pictures are hidden to protect your privacy.</span>
+                        <button onClick={() => setShowPlain(true)} className="underline hover:text-walnut">
+                          Show as plain text
+                        </button>
+                      </p>
+                    </div>
+                  ) : (
+                    latest && (
+                      <>
+                        <MessageCard m={latest} />
+                        {email.body_html && latest.id === email.id && (
+                          <button onClick={() => setShowPlain(false)} className="w-fit text-xs text-muted underline hover:text-walnut">
+                            Show formatted
+                          </button>
+                        )}
+                      </>
+                    )
+                  )}
+                  <Attachments files={(fromServer?.email.inbox_attachments ?? email.inbox_attachments ?? []) as AttachT[]} />
                 </div>
               </Card>
 

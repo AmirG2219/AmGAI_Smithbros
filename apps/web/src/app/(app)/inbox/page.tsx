@@ -16,14 +16,15 @@ const TABS = [
 
 // Everything the side panel shows is fetched here with the list, so opening an email later needs no waiting.
 const COLUMNS =
-  "id, direction, status, from_address, from_name, subject, body_text, received_at, provider_thread_id, analysis_status, category, priority, needs_reply, summary, suggested_action, contact_id, project_id, contacts(id, first_name, last_name), email_drafts(id, status, subject, body_text, checks, source, error_summary, sent_at)";
+  "id, direction, status, from_address, from_name, subject, body_text, received_at, provider_thread_id, analysis_status, category, priority, needs_reply, summary, suggested_action, read_at, contact_id, project_id, contacts(id, first_name, last_name), inbox_attachments(id, filename, content_type, size_bytes), email_drafts(id, status, subject, body_text, checks, source, error_summary, sent_at)";
 
 type RawRow = Omit<EmailT, "contacts"> & { contacts: EmailT["contacts"] | EmailT["contacts"][] };
 
-export default async function InboxPage({ searchParams }: { searchParams: Promise<{ f?: string; p?: string; e?: string }> }) {
+export default async function InboxPage({ searchParams }: { searchParams: Promise<{ f?: string; p?: string; e?: string; q?: string }> }) {
   const sp = await searchParams;
   const f = TABS.some((t) => t.key === sp.f) ? (sp.f as (typeof TABS)[number]["key"]) : "reply";
   const page = pageOf(sp.p);
+  const term = (sp.q ?? "").replace(/[%,()*\\]/g, " ").trim().slice(0, 80);
   const selected = sp.e && /^[0-9a-f-]{36}$/i.test(sp.e) ? sp.e : null;
   const supabase = await createClient();
 
@@ -36,19 +37,31 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
     .eq("status", "open")
     .or("needs_reply.is.null,needs_reply.eq.true");
 
+  const unreadCount = supabase
+    .from("inbox_emails")
+    .select("id", { count: "exact", head: true })
+    .eq("direction", "inbound")
+    .is("read_at", null);
+
   let list = null;
-  if (f !== "waiting") {
+  if (term || f !== "waiting") {
     let q = supabase.from("inbox_emails").select(COLUMNS, { count: "exact" }).eq("direction", "inbound");
-    q =
-      f === "reply"
-        ? q.eq("status", "open").or("needs_reply.is.null,needs_reply.eq.true")
-        : q.or("status.in.(handled,archived),and(status.eq.open,needs_reply.eq.false)");
+    if (term) {
+      // A search looks through all mail, whatever tab it is in.
+      q = q.or(`from_name.ilike.%${term}%,from_address.ilike.%${term}%,subject.ilike.%${term}%,body_text.ilike.%${term}%,summary.ilike.%${term}%`);
+    } else {
+      q =
+        f === "reply"
+          ? q.eq("status", "open").or("needs_reply.is.null,needs_reply.eq.true")
+          : q.or("status.in.(handled,archived),and(status.eq.open,needs_reply.eq.false)");
+    }
     const [from, to] = rangeOf(page);
     list = q.order("received_at", { ascending: false }).range(from, to);
   }
 
-  const [replyBadge, waitingAll, res] = await Promise.all([
+  const [replyBadge, unread, waitingAll, res] = await Promise.all([
     needsReplyCount.then((r) => r.count ?? 0),
+    unreadCount.then((r) => r.count ?? 0),
     findWaitingOnCustomers(supabase),
     list,
   ]);
@@ -60,26 +73,34 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
   const waiting = waitingAll.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const count: Record<string, number> = { reply: replyBadge, waiting: waitingAll.length, done: 0 };
 
-  const href = (key: string, p = 1) => {
-    const qs = new URLSearchParams({ ...(key === "reply" ? {} : { f: key }), ...(p > 1 ? { p: String(p) } : {}) }).toString();
+  const href = (key: string, p = 1, withQuery = false) => {
+    const qs = new URLSearchParams({
+      ...(key === "reply" ? {} : { f: key }),
+      ...(withQuery && term ? { q: term } : {}),
+      ...(p > 1 ? { p: String(p) } : {}),
+    }).toString();
     return qs ? `/inbox?${qs}` : "/inbox";
   };
   const tabs: TabT[] = TABS.map((t) => ({ ...t, count: count[t.key], href: href(t.key) }));
-  const pages = Math.max(1, Math.ceil((f === "waiting" ? waitingAll.length : (res?.count ?? 0)) / PAGE_SIZE));
+  const searching = !!term;
+  const totalRows = searching ? (res?.count ?? 0) : f === "waiting" ? waitingAll.length : (res?.count ?? 0);
+  const pages = Math.max(1, Math.ceil(totalRows / PAGE_SIZE));
 
   return (
     <div>
       <PageHeader eyebrow="Replies drafted for you" title="Inbox" />
       <InboxView
-        key={`${f}:${page}`}
+        key={`${f}:${page}:${term}`}
         rows={rows}
         waiting={waiting}
-        tab={f}
+        tab={searching ? "search" : f}
+        query={term}
+        unread={unread}
         tabs={tabs}
         page={page}
-        total={f === "waiting" ? waitingAll.length : (res?.count ?? 0)}
-        listHref={href(f, page)}
-        pageLinks={Array.from({ length: pages }, (_, i) => href(f, i + 1))}
+        total={totalRows}
+        listHref={href(f, page, true)}
+        pageLinks={Array.from({ length: pages }, (_, i) => href(f, i + 1, true))}
         initialSelected={selected}
         ai={replyAiEnabled()}
         connected={gmailSendConfigured()}

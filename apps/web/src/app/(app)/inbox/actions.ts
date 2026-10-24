@@ -128,3 +128,21 @@ export async function setEmailStatus(id: string, status: "open" | "handled" | "a
     .eq("id", id);
   return error ? { ok: false, notice: "invalid" } : { ok: true };
 }
+
+// Marks an email as read once it has been opened.
+export async function markRead(id: string): Promise<void> {
+  await requireAdmin();
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return;
+  await createAdminClient().from("inbox_emails").update({ read_at: new Date().toISOString() }).eq("id", id).is("read_at", null);
+}
+
+// A cheap check for new mail: the newest arrival and how many unread emails there are.
+export async function mailPulse(): Promise<{ latest: string | null; unread: number }> {
+  await requireAdmin();
+  const supabase = await createClient();
+  const [newest, unread] = await Promise.all([
+    supabase.from("inbox_emails").select("received_at").eq("direction", "inbound").order("received_at", { ascending: false }).limit(1),
+    supabase.from("inbox_emails").select("id", { count: "exact", head: true }).eq("direction", "inbound").is("read_at", null),
+  ]);
+  return { latest: newest.data?.[0]?.received_at ?? null, unread: unread.count ?? 0 };
+}

@@ -10,7 +10,16 @@ export type InboundEmail = {
   subject: string;
   received_at: string;
   body_text: string;
+  body_html: string | null;
+  attachments: InboundAttachment[];
 };
+
+// A file that came with the email. The file itself is optional: n8n may send only its details when it is too big.
+export type InboundAttachment = { filename: string; content_type: string; size: number; content: Buffer | null };
+
+const MAX_FILES = 10;
+const MAX_FILE_BYTES = 5 * 1024 * 1024;
+const MAX_TOTAL_BYTES = 8 * 1024 * 1024;
 
 const str = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 
@@ -20,6 +29,33 @@ function parseFrom(raw: string): { address: string; name: string | null } {
   const address = (m ? m[2] : raw).trim().toLowerCase();
   const name = m ? m[1].trim() || null : null;
   return { address, name };
+}
+
+function parseAttachments(raw: unknown): InboundAttachment[] {
+  if (!Array.isArray(raw)) return [];
+  const out: InboundAttachment[] = [];
+  let total = 0;
+  for (const a of raw.slice(0, MAX_FILES)) {
+    if (!a || typeof a !== "object") continue;
+    const r = a as Record<string, unknown>;
+    // File names come from outside: keep only a plain name, never a path.
+    const filename = str(r.filename ?? r.name, 255).replace(/[\\/]/g, "_").replace(/\p{Cc}/gu, "_");
+    if (!filename) continue;
+    const content =
+      typeof r.content_base64 === "string" && r.content_base64.length > 0 && r.content_base64.length <= MAX_FILE_BYTES * 1.4
+        ? Buffer.from(r.content_base64, "base64")
+        : null;
+    const keep = content && content.length <= MAX_FILE_BYTES && total + content.length <= MAX_TOTAL_BYTES ? content : null;
+    if (keep) total += keep.length;
+    const declared = Number(r.size);
+    out.push({
+      filename,
+      content_type: str(r.content_type ?? r.mime_type, 120) || "application/octet-stream",
+      size: keep ? keep.length : Number.isFinite(declared) && declared >= 0 ? Math.min(Math.round(declared), 2_000_000_000) : 0,
+      content: keep,
+    });
+  }
+  return out;
 }
 
 export function parseInbound(body: unknown): { ok: true; value: InboundEmail } | { ok: false; error: string } {
@@ -52,6 +88,8 @@ export function parseInbound(body: unknown): { ok: true; value: InboundEmail } |
       subject: str(b.subject, 500),
       received_at: Number.isNaN(received.getTime()) ? new Date().toISOString() : received.toISOString(),
       body_text: str(b.body_text ?? b.text, 50_000),
+      body_html: str(b.body_html ?? b.html, 400_000) || null,
+      attachments: parseAttachments(b.attachments),
     },
   };
 }
@@ -67,11 +105,12 @@ export async function storeInboundEmail(db: SupabaseClient, e: InboundEmail) {
     b.created_at.localeCompare(a.created_at),
   );
 
+  const { attachments, ...fields } = e;
   const { data, error } = await db
     .from("inbox_emails")
     .insert({
       provider: "gmail",
-      ...e,
+      ...fields,
       contact_id: contact?.id ?? null,
       project_id: contact && projects[0] ? projects[0].id : null,
       analysis_status: triageEnabled() ? "pending" : "skipped",
@@ -83,7 +122,29 @@ export async function storeInboundEmail(db: SupabaseClient, e: InboundEmail) {
     if (error.code === "23505") return { id: null as string | null, duplicate: true }; // already stored
     throw error;
   }
+  await storeAttachments(db, data.id as string, attachments);
   return { id: data.id as string, duplicate: false };
+}
+
+// Saves each file privately and records its details. A file that fails to save still shows up by name.
+async function storeAttachments(db: SupabaseClient, emailId: string, files: InboundAttachment[]) {
+  for (const f of files) {
+    let storage_path: string | null = null;
+    if (f.content) {
+      const path = `${emailId}/${crypto.randomUUID()}`;
+      const up = await db.storage.from("inbox-attachments").upload(path, f.content, { contentType: "application/octet-stream", upsert: false });
+      if (up.error) console.error("[inbound] attachment upload failed:", up.error.message);
+      else storage_path = path;
+    }
+    const { error } = await db.from("inbox_attachments").insert({
+      email_id: emailId,
+      filename: f.filename,
+      content_type: f.content_type,
+      size_bytes: f.size,
+      storage_path,
+    });
+    if (error) console.error("[inbound] attachment record failed:", error.message);
+  }
 }
 
 // Facts from our own database that help the model. Only trusted data goes here, never email content.

@@ -20,6 +20,8 @@ export type MsgT = {
   received_at: string;
 };
 
+export type AttachT = { id: string; filename: string; content_type: string; size_bytes: number; stored?: boolean };
+
 export type EmailT = {
   id: string;
   direction: "inbound" | "outbound";
@@ -29,6 +31,8 @@ export type EmailT = {
   subject: string;
   body_text: string;
   received_at: string;
+  read_at: string | null;
+  body_html?: string | null;
   provider_thread_id: string | null;
   analysis_status: string;
   category: string | null;
@@ -40,6 +44,7 @@ export type EmailT = {
   project_id: string | null;
   contacts: { id: string; first_name: string; last_name: string | null } | null;
   email_drafts: DraftT[];
+  inbox_attachments: AttachT[];
 };
 
 export type WaitingT = { emailId: string; name: string; subject: string; daysWaiting: number };

@@ -4,7 +4,7 @@ import { analyzeStoredEmail, parseInbound, storeInboundEmail } from "@/lib/assis
 import { createAdminClient } from "@/lib/supabase/admin";
 
 // Called by n8n when a new email arrives in the business inbox. Protected by a shared secret.
-const MAX_BYTES = 300_000;
+const MAX_BYTES = 15_000_000; // room for a few attachments sent as base64
 
 function authorized(req: NextRequest) {
   const expected = process.env.INBOUND_WEBHOOK_SECRET;
