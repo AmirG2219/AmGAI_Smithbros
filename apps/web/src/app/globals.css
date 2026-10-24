@@ -38,13 +38,6 @@ body {
   color: var(--muted);
 }
 
-/* Chat window: a small lift-and-fade when it opens */
-@keyframes chatIn {
-  from { opacity: 0; transform: translateY(14px) scale(0.98); }
-  to { opacity: 1; transform: none; }
-}
-.chat-window { animation: chatIn 0.2s ease-out; transform-origin: bottom right; }
-
 /* Each page eases in when you navigate to it */
 @keyframes pageIn {
   from { opacity: 0; transform: translateY(6px); }
@@ -52,6 +45,13 @@ body {
 }
 .page-in { animation: pageIn 0.22s ease-out; }
 
+/* An opened email slides in from the right */
+@keyframes panelIn {
+  from { opacity: 0; transform: translateX(28px); }
+  to { opacity: 1; transform: none; }
+}
+.panel-in { animation: panelIn 0.28s ease-out; }
+
 @media (prefers-reduced-motion: reduce) {
-  .chat-window, .page-in { animation: none; }
+  .page-in, .panel-in { animation: none; }
 }

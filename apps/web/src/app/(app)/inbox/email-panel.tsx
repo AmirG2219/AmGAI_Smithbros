@@ -195,6 +195,11 @@ export async function EmailPanel({ id, back, notice }: { id: string; back: strin
 
           {open ? (
             <div className="grid gap-4">
+              {!ai && open.source === "manual" && (
+                <p className="rounded-xl border border-line bg-cream/60 px-4 py-3 text-sm text-muted">
+                  AI drafting is off, so this is just a starting point. Once the OpenAI key is connected, a full reply is written for you here.
+                </p>
+              )}
               {open.checks.length > 0 && (
                 <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
                   <p className="mb-2 flex items-center gap-2 font-medium">

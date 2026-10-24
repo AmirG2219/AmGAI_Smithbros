@@ -109,7 +109,7 @@ export default async function InboxPage({
 
   return (
     <div>
-      <PageHeader eyebrow="Inbox" title="Email Assistant" />
+      <PageHeader eyebrow="Replies drafted for you" title="Inbox" />
 
       {/* On a phone, an open email takes the whole screen; on a computer the list and the email sit side by side. */}
       <div className={`mb-4 flex-wrap gap-2 ${selected ? "hidden lg:flex" : "flex"}`}>
@@ -130,7 +130,7 @@ export default async function InboxPage({
       </div>
       {error && <p className="mb-4 text-red-700">Could not load the inbox.</p>}
 
-      <div className="lg:grid lg:grid-cols-[minmax(300px,380px)_minmax(0,1fr)] lg:items-start lg:gap-6">
+      <div className={selected ? "lg:grid lg:grid-cols-[minmax(300px,380px)_minmax(0,1fr)] lg:items-start lg:gap-6" : ""}>
         <section className={`min-w-0 ${selected ? "hidden lg:block" : ""}`} aria-label="Emails">
           {f === "waiting" ? (
             waiting.length === 0 ? (
@@ -163,14 +163,17 @@ export default async function InboxPage({
                 const draftReady = e.email_drafts?.some((d) => OPEN_DRAFT.includes(d.status));
                 return (
                   <Link key={e.id} href={listHref(f, page, e.id)} scroll={false}>
-                    <Card className={`p-4 transition-colors hover:border-bronze ${selected === e.id ? "border-bronze bg-cream/60" : ""}`}>
-                      <div className="flex items-center justify-between gap-2">
+                    <Card className={`p-4 transition-colors hover:border-bronze ${selected === e.id ? "border-bronze bg-cream/60" : ""} ${selected ? "" : "lg:grid lg:grid-cols-[220px_minmax(0,1fr)_auto] lg:items-center lg:gap-x-6 lg:px-5 lg:py-3.5"}`}>
+                      <div className={`flex items-center justify-between gap-2 ${selected ? "" : "lg:block"}`}>
                         <p className="truncate font-medium">{e.from_name || e.from_address}</p>
-                        <span className="shrink-0 text-xs text-muted">{day(e.received_at)}</span>
+                        <span className={`shrink-0 text-xs text-muted ${selected ? "" : "lg:hidden"}`}>{day(e.received_at)}</span>
                       </div>
-                      <p className="mt-0.5 truncate text-sm">{e.subject || "(no subject)"}</p>
-                      <p className="mt-1 line-clamp-2 text-xs text-muted">{e.summary ?? e.body_text.replace(/\s+/g, " ").slice(0, 160)}</p>
-                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      <div className="min-w-0">
+                        <p className="mt-0.5 truncate text-sm lg:mt-0">{e.subject || "(no subject)"}</p>
+                        <p className="mt-1 line-clamp-2 text-xs text-muted lg:line-clamp-1">{e.summary ?? e.body_text.replace(/\s+/g, " ").slice(0, 160)}</p>
+                      </div>
+                      <span className={`hidden shrink-0 text-xs text-muted ${selected ? "" : "lg:block"}`}>{day(e.received_at)}</span>
+                      <div className={`mt-2 flex flex-wrap items-center gap-1.5 ${selected ? "" : "lg:col-start-1 lg:row-start-2 lg:mt-1"}`}>
                         {e.priority && e.priority !== "normal" && e.priority !== "low" && <Pill kind={priorityPill[e.priority]}>{e.priority}</Pill>}
                         {e.category && <span className="text-xs capitalize text-muted">{pretty(e.category)}</span>}
                         {e.analysis_status === "pending" && <span className="text-xs text-muted">Analyzing…</span>}
@@ -191,7 +194,9 @@ export default async function InboxPage({
         >
           {selected ? (
             <Suspense key={selected} fallback={<PanelSkeleton />}>
-              <EmailPanel id={selected} back={back} notice={sp.notice} />
+              <div className="panel-in">
+                <EmailPanel id={selected} back={back} notice={sp.notice} />
+              </div>
             </Suspense>
           ) : (
             <div className="hidden rounded-2xl border border-dashed border-line px-8 py-24 text-center lg:block">

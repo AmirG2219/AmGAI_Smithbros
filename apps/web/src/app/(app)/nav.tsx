@@ -18,14 +18,14 @@ type Item = {
 const main: Item[] = [
   { href: "/", label: "Overview", Icon: LayoutGrid },
   { href: "/leads", label: "Leads", Icon: Users },
-  { href: "/inbox", label: "Email Assistant", Icon: Mail },
+  { href: "/inbox", label: "Inbox", Icon: Mail },
   { href: "/documents", label: "Documents", Icon: FileStack, also: ["/contracts", "/agreements"] },
   { href: "/campaigns", label: "Marketing Emails", Icon: Send },
 ];
 // Reference data: used often, but not the daily flow, so it sits at the bottom.
 const bottom: Item[] = [{ href: "/contacts", label: "Clients", Icon: BookUser }];
 
-const PHONE_TABS = 4; // Overview, Leads, Email Assistant, Documents; the rest go under "More"
+const PHONE_TABS = 4; // Overview, Leads, Inbox, Documents; the rest go under "More"
 
 function useActive() {
   const path = usePathname();
@@ -111,7 +111,7 @@ export function MobileNav({ help }: { help: HelpConfig | null }) {
             }`}
           >
             <i.Icon size={20} strokeWidth={1.6} />
-            {i.label === "Email Assistant" ? "Email" : i.label}
+            {i.label}
           </Link>
         ))}
         <button

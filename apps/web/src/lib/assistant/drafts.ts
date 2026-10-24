@@ -50,7 +50,7 @@ export async function createOrRefreshDraft(db: SupabaseClient, emailId: string, 
   const learning = useAi ? await loadLearning(db) : undefined;
 
   let subject = rePrefix(e.subject);
-  let body = `Hi ${firstName(e)},\n\n`;
+  let body = `Hi ${firstName(e)},\n\nThanks for getting in touch.\n\n`;
   let checks: string[] = [];
   let source: "ai" | "manual" = "manual";
   let model: string | null = null;
