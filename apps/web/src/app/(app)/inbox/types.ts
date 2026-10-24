@@ -1,0 +1,52 @@
+// Shapes shared by the inbox page (server) and the inbox view (browser).
+
+export type DraftT = {
+  id: string;
+  status: string;
+  subject: string;
+  body_text: string;
+  checks: string[];
+  source: string;
+  error_summary: string | null;
+  sent_at: string | null;
+};
+
+export type MsgT = {
+  id: string;
+  direction: "inbound" | "outbound";
+  from_address: string;
+  from_name: string | null;
+  body_text: string;
+  received_at: string;
+};
+
+export type EmailT = {
+  id: string;
+  direction: "inbound" | "outbound";
+  status: string;
+  from_address: string;
+  from_name: string | null;
+  subject: string;
+  body_text: string;
+  received_at: string;
+  provider_thread_id: string | null;
+  analysis_status: string;
+  category: string | null;
+  priority: string | null;
+  needs_reply: boolean | null;
+  summary: string | null;
+  suggested_action: string | null;
+  contact_id: string | null;
+  project_id: string | null;
+  contacts: { id: string; first_name: string; last_name: string | null } | null;
+  email_drafts: DraftT[];
+};
+
+export type WaitingT = { emailId: string; name: string; subject: string; daysWaiting: number };
+
+// What the "open this email" call returns when the email is not already on the page.
+export type PanelData = { email: Omit<EmailT, "email_drafts">; thread: MsgT[]; drafts: DraftT[] };
+
+export type ActionResult = { ok: boolean; notice?: string; draft?: DraftT | null };
+
+export const OPEN_DRAFT = ["draft", "approved", "failed"];

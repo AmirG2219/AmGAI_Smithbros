@@ -12,7 +12,7 @@ export async function register() {
       keepAliveTimeout: 120_000,
       keepAliveMaxTimeout: 600_000,
       connections: 24,
-      connect: { timeout: 10_000 },
+      connect: { timeout: 6_000 },
     }),
   );
 

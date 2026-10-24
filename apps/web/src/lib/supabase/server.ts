@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { resilientFetch } from "./fetch";
 
 // Server-side client that acts as the signed-in user (subject to RLS).
 export async function createClient() {
@@ -8,6 +9,7 @@ export async function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
     {
+      global: { fetch: resilientFetch },
       cookies: {
         getAll: () => cookieStore.getAll(),
         setAll(list) {
