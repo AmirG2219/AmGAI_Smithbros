@@ -1,10 +1,12 @@
+import { Suspense } from "react";
 import Link from "next/link";
-import { CalendarClock } from "lucide-react";
+import { CalendarClock, Mail } from "lucide-react";
 import { findWaitingOnCustomers } from "@/lib/assistant/waiting";
 import { createClient } from "@/lib/supabase/server";
 import { Card, PageHeader, Pill } from "../ui";
 import { PAGE_SIZE, Pager, pageOf, rangeOf } from "../pager";
 import { draftFollowUp } from "./actions";
+import { EmailPanel } from "./email-panel";
 
 // Three places, each answering one question: what do I owe a reply to, who owes me one, and what is finished.
 const TABS = [
@@ -34,15 +36,25 @@ type Row = {
   email_drafts: { status: string }[];
 };
 
+function PanelSkeleton() {
+  return (
+    <div className="animate-pulse space-y-4" aria-busy="true" aria-label="Loading email">
+      <div className="h-36 rounded-2xl border border-line bg-card" />
+      <div className="h-24 rounded-2xl border border-line bg-card" />
+      <div className="h-48 rounded-2xl border border-line bg-card" />
+    </div>
+  );
+}
+
 export default async function InboxPage({
   searchParams,
 }: {
-  searchParams: Promise<{ f?: string; p?: string; notice?: string }>;
+  searchParams: Promise<{ f?: string; p?: string; e?: string; notice?: string }>;
 }) {
   const sp = await searchParams;
   const f = TABS.some((t) => t.key === sp.f) ? (sp.f as (typeof TABS)[number]["key"]) : "reply";
   const page = pageOf(sp.p);
-  const notice = sp.notice;
+  const selected = sp.e && /^[0-9a-f-]{36}$/i.test(sp.e) ? sp.e : null;
   const supabase = await createClient();
 
   // One batch to the database: the badge counts, the waiting list, and this tab's page of emails.
@@ -81,21 +93,30 @@ export default async function InboxPage({
   const total = res?.count ?? 0;
   const waiting = waitingAll.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const badge: Record<string, number> = { reply: replyBadge, waiting: waitingAll.length };
-  const href = (key: string, p = 1) => `/inbox?${new URLSearchParams({ ...(key === "reply" ? {} : { f: key }), ...(p > 1 ? { p: String(p) } : {}) })}`.replace(/\?$/, "");
+
+  // The list address (this tab, this page) with or without an email open beside it.
+  const listHref = (key: string, p = 1, email?: string | null) => {
+    const qs = new URLSearchParams({
+      ...(key === "reply" ? {} : { f: key }),
+      ...(p > 1 ? { p: String(p) } : {}),
+      ...(email ? { e: email } : {}),
+    }).toString();
+    return qs ? `/inbox?${qs}` : "/inbox";
+  };
+  const back = listHref(f, page);
+  const day = (iso: string) =>
+    new Date(iso).toLocaleString("en-CA", { timeZone: "America/Edmonton", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 
   return (
     <div>
       <PageHeader eyebrow="Inbox" title="Email Assistant" />
 
-      {notice === "drafted" && (
-        <p className="mb-4 rounded-xl border border-gold/40 bg-gold/10 px-4 py-3 text-sm">Follow-up draft ready. Open it to review.</p>
-      )}
-
-      <div className="mb-4 flex flex-wrap gap-2">
+      {/* On a phone, an open email takes the whole screen; on a computer the list and the email sit side by side. */}
+      <div className={`mb-4 flex-wrap gap-2 ${selected ? "hidden lg:flex" : "flex"}`}>
         {TABS.map((t) => (
           <Link
             key={t.key}
-            href={href(t.key)}
+            href={listHref(t.key)}
             className={`inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm ${
               f === t.key ? "border-walnut bg-walnut text-cream" : "border-line bg-card text-muted hover:text-walnut"
             }`}
@@ -109,72 +130,78 @@ export default async function InboxPage({
       </div>
       {error && <p className="mb-4 text-red-700">Could not load the inbox.</p>}
 
-      {f === "waiting" ? (
-        waiting.length === 0 ? (
-          <Card className="px-6 py-10 text-center text-sm text-muted">No one is overdue. Everyone you replied to has answered, or it hasn&apos;t been 3 days yet.</Card>
-        ) : (
-          <div className="grid gap-3">
-            {waiting.map((w) => (
-              <Card key={w.emailId} className="flex flex-wrap items-center justify-between gap-3 p-4 sm:p-5">
-                <div className="min-w-0">
-                  <p className="font-medium">{w.name}</p>
-                  <p className="truncate text-sm">{w.subject || "(no subject)"}</p>
-                  <p className="mt-1 flex items-center gap-1.5 text-xs text-muted">
-                    <CalendarClock size={13} /> You replied {w.daysWaiting} days ago. No answer yet.
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <Link href={`/inbox/${w.emailId}`} className="rounded-lg border border-line px-4 py-2 text-sm hover:border-bronze">
-                    Open
+      <div className="lg:grid lg:grid-cols-[minmax(300px,380px)_minmax(0,1fr)] lg:items-start lg:gap-6">
+        <section className={`min-w-0 ${selected ? "hidden lg:block" : ""}`} aria-label="Emails">
+          {f === "waiting" ? (
+            waiting.length === 0 ? (
+              <Card className="px-6 py-10 text-center text-sm text-muted">
+                No one is overdue. Everyone you replied to has answered, or it hasn&apos;t been 3 days yet.
+              </Card>
+            ) : (
+              <div className="grid gap-2">
+                {waiting.map((w) => (
+                  <Card key={w.emailId} className={`p-4 transition-colors hover:border-bronze ${selected === w.emailId ? "border-bronze bg-cream/60" : ""}`}>
+                    <Link href={listHref(f, page, w.emailId)} scroll={false} className="block">
+                      <p className="truncate font-medium">{w.name}</p>
+                      <p className="truncate text-sm">{w.subject || "(no subject)"}</p>
+                      <p className="mt-1.5 flex items-center gap-1.5 text-xs text-muted">
+                        <CalendarClock size={13} /> You replied {w.daysWaiting} days ago. No answer yet.
+                      </p>
+                    </Link>
+                    <form action={draftFollowUp.bind(null, w.emailId, w.daysWaiting)} className="mt-2">
+                      <button className="rounded-lg bg-walnut px-3 py-1.5 text-xs font-medium text-cream hover:bg-bronze">Draft a follow-up</button>
+                    </form>
+                  </Card>
+                ))}
+              </div>
+            )
+          ) : rows.length === 0 ? (
+            <Card className="px-6 py-10 text-center text-sm text-muted">{f === "reply" ? "Nothing needs a reply right now." : "Nothing here yet."}</Card>
+          ) : (
+            <div className="grid gap-2">
+              {rows.map((e) => {
+                const draftReady = e.email_drafts?.some((d) => OPEN_DRAFT.includes(d.status));
+                return (
+                  <Link key={e.id} href={listHref(f, page, e.id)} scroll={false}>
+                    <Card className={`p-4 transition-colors hover:border-bronze ${selected === e.id ? "border-bronze bg-cream/60" : ""}`}>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="truncate font-medium">{e.from_name || e.from_address}</p>
+                        <span className="shrink-0 text-xs text-muted">{day(e.received_at)}</span>
+                      </div>
+                      <p className="mt-0.5 truncate text-sm">{e.subject || "(no subject)"}</p>
+                      <p className="mt-1 line-clamp-2 text-xs text-muted">{e.summary ?? e.body_text.replace(/\s+/g, " ").slice(0, 160)}</p>
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                        {e.priority && e.priority !== "normal" && e.priority !== "low" && <Pill kind={priorityPill[e.priority]}>{e.priority}</Pill>}
+                        {e.category && <span className="text-xs capitalize text-muted">{pretty(e.category)}</span>}
+                        {e.analysis_status === "pending" && <span className="text-xs text-muted">Analyzing…</span>}
+                        {draftReady && <span className="rounded-full bg-gold/15 px-2 py-0.5 text-xs text-bronze">Draft ready</span>}
+                      </div>
+                    </Card>
                   </Link>
-                  <form action={draftFollowUp.bind(null, w.emailId, w.daysWaiting)}>
-                    <button className="rounded-lg bg-walnut px-4 py-2 text-sm font-medium text-cream hover:bg-bronze">Draft a follow-up</button>
-                  </form>
-                </div>
-              </Card>
-            ))}
-          </div>
-        )
-      ) : rows.length === 0 ? (
-        <Card className="px-6 py-10 text-center text-sm text-muted">
-          {f === "reply" ? "Nothing needs a reply right now." : "Nothing here yet."}
-        </Card>
-      ) : (
-        <div className="grid gap-3">
-          {rows.map((e) => (
-            <Link key={e.id} href={`/inbox/${e.id}`}>
-              <Card className="p-4 hover:border-bronze sm:p-5">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="font-medium">
-                    {e.from_name || e.from_address}
-                    {e.contact_id && <span className="ml-2 text-xs font-normal text-bronze">known contact</span>}
-                  </p>
-                  <div className="flex items-center gap-2">
-                    {e.priority && <Pill kind={priorityPill[e.priority]}>{e.priority}</Pill>}
-                    <span className="text-xs text-muted">
-                      {new Date(e.received_at).toLocaleString("en-CA", {
-                        timeZone: "America/Edmonton",
-                        month: "short",
-                        day: "numeric",
-                        hour: "numeric",
-                        minute: "2-digit",
-                      })}
-                    </span>
-                  </div>
-                </div>
-                <p className="mt-1 text-sm">{e.subject || "(no subject)"}</p>
-                <p className="mt-2 text-sm text-muted">{e.summary ?? e.body_text.replace(/\s+/g, " ").slice(0, 180)}</p>
-                <p className="mt-2 text-xs capitalize text-muted">
-                  {e.category ? pretty(e.category) : e.analysis_status === "pending" ? "Analyzing…" : "Not analyzed"}
-                  {e.needs_reply ? " · needs reply" : ""}
-                  {e.email_drafts?.some((d) => OPEN_DRAFT.includes(d.status)) ? " · draft ready" : ""}
-                </p>
-              </Card>
-            </Link>
-          ))}
-        </div>
-      )}
-      <Pager page={page} total={f === "waiting" ? waitingAll.length : total} hrefFor={(p) => href(f, p)} />
+                );
+              })}
+            </div>
+          )}
+          <Pager page={page} total={f === "waiting" ? waitingAll.length : total} hrefFor={(p) => listHref(f, p)} />
+        </section>
+
+        <section
+          className={`min-w-0 ${selected ? "" : "hidden lg:block"} lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto lg:pr-1`}
+          aria-label="Selected email"
+        >
+          {selected ? (
+            <Suspense key={selected} fallback={<PanelSkeleton />}>
+              <EmailPanel id={selected} back={back} notice={sp.notice} />
+            </Suspense>
+          ) : (
+            <div className="hidden rounded-2xl border border-dashed border-line px-8 py-24 text-center lg:block">
+              <Mail size={28} strokeWidth={1.4} className="mx-auto text-bronze" />
+              <p className="mt-3 font-serif text-xl">Pick an email</p>
+              <p className="mt-1 text-sm text-muted">It opens here with a reply already drafted for you to check.</p>
+            </div>
+          )}
+        </section>
+      </div>
     </div>
   );
 }

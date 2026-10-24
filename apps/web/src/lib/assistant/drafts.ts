@@ -36,7 +36,8 @@ export async function loadThread(db: SupabaseClient, email: EmailRow): Promise<E
 
 // Writes (or rewrites) the one open draft for an inbound email. With an OpenAI key the draft is grounded in our
 // records and the owner's standard answers; without one it is a blank reply for the owner to write.
-export async function createOrRefreshDraft(db: SupabaseClient, emailId: string, instruction?: string) {
+export async function createOrRefreshDraft(db: SupabaseClient, emailId: string, instruction?: string, opts?: { blank?: boolean }) {
+  const useAi = replyAiEnabled() && !opts?.blank;
   const { data: email } = await db.from("inbox_emails").select(COLUMNS).eq("id", emailId).single();
   if (!email) throw new Error("Email not found");
   const e = email as EmailRow;
@@ -46,7 +47,7 @@ export async function createOrRefreshDraft(db: SupabaseClient, emailId: string, 
   const lead = e.project_id ? await loadLeadForEmail(db, e.project_id) : null;
   const facts = lead ? leadFacts(lead.ctx) : null;
   const knowledge = await loadKnowledge(db);
-  const learning = replyAiEnabled() ? await loadLearning(db) : undefined;
+  const learning = useAi ? await loadLearning(db) : undefined;
 
   let subject = rePrefix(e.subject);
   let body = `Hi ${firstName(e)},\n\n`;
@@ -55,7 +56,7 @@ export async function createOrRefreshDraft(db: SupabaseClient, emailId: string, 
   let model: string | null = null;
   let aiBody: string | null = null;
 
-  if (replyAiEnabled()) {
+  if (useAi) {
     const messages: ThreadMessage[] = thread.map((m) => ({
       direction: m.direction,
       who: m.from_name ?? m.from_address,
