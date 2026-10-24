@@ -5,6 +5,8 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: ["100.90.228.111", "amir.tail1d410.ts.net", "192.168.68.54"],
   // Hides the Next.js development badge. Real compile and runtime errors are still shown.
   devIndicators: false,
+  // Development only: print every database request with its time, to see where a slow page spends its time.
+  logging: { fetches: { fullUrl: false } },
   // Keeps a visited page for 20 seconds so going back or revisiting is instant. Saving something refreshes it.
   experimental: { staleTimes: { dynamic: 20 } },
   // The website widget loads these fonts from other domains, which browsers only allow with this header.

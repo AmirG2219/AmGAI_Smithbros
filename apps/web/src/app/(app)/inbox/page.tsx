@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, PageHeader, Pill } from "../ui";
 import { PAGE_SIZE, Pager, pageOf, rangeOf } from "../pager";
 import { draftFollowUp } from "./actions";
-import { EmailPanel } from "./email-panel";
+import { EmailPanel, loadEmailPanel } from "./email-panel";
 
 // Three places, each answering one question: what do I owe a reply to, who owes me one, and what is finished.
 const TABS = [
@@ -56,6 +56,9 @@ export default async function InboxPage({
   const page = pageOf(sp.p);
   const selected = sp.e && /^[0-9a-f-]{36}$/i.test(sp.e) ? sp.e : null;
   const supabase = await createClient();
+
+  // The open email starts loading right now, alongside the list, instead of after it.
+  const panelData = selected ? loadEmailPanel(supabase, selected) : null;
 
   // One batch to the database: the badge counts, the waiting list, and this tab's page of emails.
   // "Needs reply" includes emails the AI has not looked at yet (needs_reply unknown), so nothing is hidden while AI is off.
@@ -195,7 +198,7 @@ export default async function InboxPage({
           {selected ? (
             <Suspense key={selected} fallback={<PanelSkeleton />}>
               <div className="panel-in">
-                <EmailPanel id={selected} back={back} notice={sp.notice} />
+                <EmailPanel id={selected} back={back} notice={sp.notice} data={panelData!} />
               </div>
             </Suspense>
           ) : (

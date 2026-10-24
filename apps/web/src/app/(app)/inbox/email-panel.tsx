@@ -49,12 +49,36 @@ function MessageCard({ m }: { m: Msg }) {
   );
 }
 
-// The email, everything we know about it, and a reply that is already drafted. Shown beside the list.
-export async function EmailPanel({ id, back, notice }: { id: string; back: string; notice?: string }) {
-  const supabase = await createClient();
-  const { data: e } = await supabase.from("inbox_emails").select("*, contacts(id, first_name, last_name)").eq("id", id).maybeSingle();
+type PanelEmail = {
+  id: string;
+  direction: "inbound" | "outbound";
+  status: string;
+  from_address: string;
+  from_name: string | null;
+  subject: string;
+  body_text: string;
+  received_at: string;
+  provider_thread_id: string | null;
+  priority: string | null;
+  category: string | null;
+  needs_reply: boolean | null;
+  summary: string | null;
+  suggested_action: string | null;
+  analysis_status: string;
+  project_id: string | null;
+  contacts: { id: string; first_name: string; last_name: string | null } | null;
+};
+export type PanelData = { email: PanelEmail; thread: Msg[]; drafts: Draft[] };
 
-  if (!e)
+// Everything the panel shows, in one database call, so it can start loading at the same moment as the list.
+export function loadEmailPanel(supabase: Awaited<ReturnType<typeof createClient>>, id: string) {
+  return supabase.rpc("email_panel", { p_id: id }).then((r) => (r.data as PanelData | null) ?? null);
+}
+
+// The email, everything we know about it, and a reply that is already drafted. Shown beside the list.
+export async function EmailPanel({ id, back, notice, data }: { id: string; back: string; notice?: string; data: PromiseLike<PanelData | null> }) {
+  const d = await data;
+  if (!d)
     return (
       <Card className="p-8 text-center">
         <p className="font-serif text-xl">That email isn&apos;t available</p>
@@ -63,31 +87,17 @@ export async function EmailPanel({ id, back, notice }: { id: string; back: strin
         </Link>
       </Card>
     );
+  const e = d.email;
+  const thread = d.thread;
+  const drafts = d.drafts;
 
-  const [{ data: thread }, { data: drafts }] = await Promise.all([
-    e.provider_thread_id
-      ? supabase
-          .from("inbox_emails")
-          .select("id, direction, from_address, from_name, body_text, received_at")
-          .eq("provider_thread_id", e.provider_thread_id)
-          .order("received_at", { ascending: true })
-          .limit(30)
-      : Promise.resolve({ data: null }),
-    supabase
-      .from("email_drafts")
-      .select("id, status, subject, body_text, checks, source, error_summary, sent_at")
-      .eq("email_id", id)
-      .order("created_at", { ascending: false })
-      .limit(5),
-  ]);
-
-  const messages = (thread as Msg[] | null)?.length ? (thread as Msg[]) : [e as Msg];
+  const messages = thread.length ? thread : [e as unknown as Msg];
   const earlier = messages.slice(0, -1);
   const latest = messages[messages.length - 1];
-  const all = (drafts ?? []) as Draft[];
+  const all = drafts;
   const open = all.find((d) => ["draft", "approved", "failed"].includes(d.status));
   const sent = all.find((d) => d.status === "sent");
-  const c = Array.isArray(e.contacts) ? e.contacts[0] : e.contacts;
+  const c = e.contacts;
   const connected = gmailSendConfigured();
   const ai = replyAiEnabled();
   const isInbound = e.direction === "inbound";

@@ -16,18 +16,18 @@ export async function register() {
     }),
   );
 
-  // On a long-running server (local, or a dedicated host) keep a handful of connections warm between clicks.
+  // On a long-running server (local, or a dedicated host) keep a pool of connections warm between clicks.
   // Serverless hosts freeze between requests, so this is skipped there.
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   if (!process.env.VERCEL && url && key) {
     const warm = () =>
       Promise.allSettled(
-        Array.from({ length: 6 }, () =>
+        Array.from({ length: 16 }, () =>
           fetch(`${url}/rest/v1/`, { method: "HEAD", headers: { apikey: key }, signal: AbortSignal.timeout(8_000) }),
         ),
       );
     void warm();
-    setInterval(() => void warm(), 25_000).unref();
+    setInterval(() => void warm(), 20_000).unref();
   }
 }
