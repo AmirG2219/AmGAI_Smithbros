@@ -39,33 +39,55 @@ export type EstimateEmailInput = {
   squareFootage: number | null;
   min: number;
   max: number;
-  isSample: boolean;
   bookingUrl: string | null;
 };
 
+// The automatic preliminary estimate. Always labelled as a non-binding range that depends on an on-site inspection.
 export function customerEstimateEmail(i: EstimateEmailInput) {
   const range = `${money(i.min)} – ${money(i.max)} CAD`;
   const what = `${label(i.projectType)}, ${i.material}${i.squareFootage ? `, about ${i.squareFootage} sq ft` : ""}`;
-  const subject = `${i.isSample ? "[SAMPLE] " : ""}Your Smith Bros Floors ballpark estimate`;
+  const subject = "Your Smith Bros Floors preliminary estimate";
 
   const html = shell(`
-${i.isSample ? `<p style="background:#fff4d6;border:1px solid #d19b38;padding:10px 12px;border-radius:8px;font-size:13px"><b>SAMPLE ESTIMATE.</b> Demo pricing for testing only. Not a real quote.</p>` : ""}
 <p>Hi ${esc(i.firstName)},</p>
-<p>Thanks for contacting Smith Bros Floors. Based on what you told us (${esc(what)}), a rough ballpark for your project is:</p>
-<p style="font-size:26px;margin:16px 0;color:#211a16"><b>${esc(range)}</b><br><span style="font-size:12px;color:#8a7b6c">Before tax. A ballpark, not a final quote.</span></p>
-<p>The best next step is a consultation so we can see the space and give you an accurate quote.</p>
-${i.bookingUrl ? `<p><a href="${esc(i.bookingUrl)}" style="display:inline-block;background:#211a16;color:#f5f0e8;padding:12px 22px;border-radius:8px;text-decoration:none">Book your consultation</a></p>` : "<p>We&#39;ll be in touch shortly to arrange a time.</p>"}
+<p>Thanks for contacting Smith Bros Floors. Based on what you told us (${esc(what)}), your preliminary estimate is:</p>
+<p style="font-size:26px;margin:16px 0;color:#211a16"><b>${esc(range)}</b><br><span style="font-size:12px;color:#8a7b6c">Before tax.</span></p>
+<p style="background:#f5f0e8;border:1px solid #e8dfd0;padding:10px 12px;border-radius:8px;font-size:13px"><b>This is a non-binding estimate, not a quote.</b> It is subject to an on-site inspection, and the final price may be higher or lower. We will give you a written final quote after we have seen the space.</p>
+<p>One of our team will be in touch to arrange your free inspection.</p>
+${i.bookingUrl ? `<p><a href="${esc(i.bookingUrl)}" style="display:inline-block;background:#211a16;color:#f5f0e8;padding:12px 22px;border-radius:8px;text-decoration:none">Book your inspection</a></p>` : ""}
 <p style="color:#8a7b6c;font-size:13px">Smith Bros Floors</p>`);
 
-  const text = `${i.isSample ? "SAMPLE ESTIMATE - demo pricing for testing only. Not a real quote.\n\n" : ""}Hi ${i.firstName},
+  const text = `Hi ${i.firstName},
 
-Thanks for contacting Smith Bros Floors. Based on what you told us (${what}), a rough ballpark for your project is ${range}, before tax. This is a ballpark, not a final quote.
+Thanks for contacting Smith Bros Floors. Based on what you told us (${what}), your preliminary estimate is ${range}, before tax.
 
-The best next step is a consultation so we can see the space and give you an accurate quote.
-${i.bookingUrl ? `Book here: ${i.bookingUrl}` : "We'll be in touch shortly to arrange a time."}
+This is a non-binding estimate, not a quote. It is subject to an on-site inspection, and the final price may be higher or lower. We will give you a written final quote after we have seen the space.
 
+One of our team will be in touch to arrange your free inspection.
+${i.bookingUrl ? `Book here: ${i.bookingUrl}
+` : ""}
 Smith Bros Floors`;
 
+  return { subject, html, text };
+}
+
+// Sent when we cannot give a responsible price automatically. No figure, just a promise of follow-up.
+export function acknowledgmentEmail(i: { firstName: string; bookingUrl: string | null }) {
+  const subject = "We received your Smith Bros Floors inquiry";
+  const html = shell(`
+<p>Hi ${esc(i.firstName)},</p>
+<p>Thanks for contacting Smith Bros Floors. We have received the details of your project.</p>
+<p>One of our team will review them and get back to you shortly to arrange a free inspection, after which we will provide an accurate quote.</p>
+${i.bookingUrl ? `<p><a href="${esc(i.bookingUrl)}" style="display:inline-block;background:#211a16;color:#f5f0e8;padding:12px 22px;border-radius:8px;text-decoration:none">Book your inspection</a></p>` : ""}
+<p style="color:#8a7b6c;font-size:13px">Smith Bros Floors</p>`);
+  const text = `Hi ${i.firstName},
+
+Thanks for contacting Smith Bros Floors. We have received the details of your project.
+
+One of our team will review them and get back to you shortly to arrange a free inspection, after which we will provide an accurate quote.
+${i.bookingUrl ? `Book here: ${i.bookingUrl}
+` : ""}
+Smith Bros Floors`;
   return { subject, html, text };
 }
 

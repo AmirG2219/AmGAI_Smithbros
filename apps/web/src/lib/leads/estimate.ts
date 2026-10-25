@@ -7,6 +7,8 @@ export type PricingDefinition = {
   per_sqft: Record<string, { min: number; max: number }>;
   project_type_multiplier: Record<string, number>;
   minimum_job_charge: number;
+  // Optional limits on what may be priced automatically. Anything outside them is left for staff to quote.
+  supported?: { project_types?: string[]; max_square_footage?: number };
 };
 
 export type EstimateResult =
@@ -24,6 +26,11 @@ const cents = (n: number) => Math.round(n * 100) / 100;
 export function priceEstimate(q: Inquiry, def: PricingDefinition): EstimateResult {
   if (q.square_footage === null)
     return { priced: false, reason: "Square footage was not provided." };
+  const sup = def.supported;
+  if (sup?.project_types && !sup.project_types.includes(q.project_type))
+    return { priced: false, reason: `Project type "${q.project_type}" is not priced automatically; staff to quote.` };
+  if (sup?.max_square_footage !== undefined && q.square_footage > sup.max_square_footage)
+    return { priced: false, reason: `Square footage is above the ${sup.max_square_footage} sq ft limit for automatic estimates; staff to quote.` };
   const rate = def.per_sqft[q.material];
   if (!rate)
     return { priced: false, reason: `No pricing for material "${q.material}"; staff to quote.` };

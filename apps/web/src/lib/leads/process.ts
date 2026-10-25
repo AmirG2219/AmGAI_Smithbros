@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { priceEstimate, type PricingDefinition } from "./estimate";
 import type { Inquiry } from "./inquiry";
 import { notifyNewLead, type NotifyContext } from "./notify";
+import { runEstimateStage } from "./intake-estimate";
 import { scoreLead, type ScoringRules } from "./scoring";
 
 export type IntakeResult = {
@@ -10,7 +11,7 @@ export type IntakeResult = {
   duplicate: boolean;
   // false if a follow-up step failed; the lead itself is always saved first.
   fully_processed: boolean;
-  // The rough estimate the visitor may see on screen (null when there is none, or it must not be shown yet).
+  // The rough estimate the visitor may see on screen (null when there is none, or it must not be shown).
   estimate: { min: number; max: number; isSample: boolean } | null;
 };
 
@@ -60,7 +61,6 @@ export async function processInquiry(q: Inquiry): Promise<IntakeResult> {
   };
 
   let scoreInfo: NotifyContext["score"] = null;
-  let estimateInfo: NotifyContext["estimate"] = null;
 
   // The RPC stores the answers in additional_answers only; copy the key ones into columns for the dashboard.
   await step("project columns", async () => {
@@ -117,12 +117,14 @@ export async function processInquiry(q: Inquiry): Promise<IntakeResult> {
     if (error) throw error;
   });
 
-  await step("estimate", async () => {
+  const stage = await runEstimateStage({
+    calculate: async () => {
+    // Only an approved, non-placeholder rule may price a customer's estimate. Test/placeholder rules are never used.
     const { data: rule } = await db
       .from("pricing_rules")
       .select("id, version, status, is_placeholder, definition")
-      .in("status", ["approved", "test"])
-      .order("status", { ascending: true }) // 'approved' sorts before 'test'
+      .eq("status", "approved")
+      .eq("is_placeholder", false)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -141,7 +143,7 @@ export async function processInquiry(q: Inquiry): Promise<IntakeResult> {
 
     const result = rule
       ? priceEstimate(q, rule.definition as PricingDefinition)
-      : ({ priced: false, reason: "No pricing rule is available." } as const);
+      : ({ priced: false, reason: "No approved, non-placeholder pricing rule is available." } as const);
 
     const { data: recorded, error } = await db.rpc(
       "record_estimate_revision",
@@ -178,28 +180,41 @@ export async function processInquiry(q: Inquiry): Promise<IntakeResult> {
           },
     );
     if (error) throw error;
-    estimateInfo = {
-      id: recorded.estimate_id,
-      priced: result.priced,
-      min: result.priced ? result.price_min : undefined,
-      max: result.priced ? result.price_max : undefined,
-      isSample: rule?.is_placeholder ?? false,
+    return {
+      info: {
+        id: recorded.estimate_id as string,
+        priced: result.priced,
+        min: result.priced ? result.price_min : undefined,
+        max: result.priced ? result.price_max : undefined,
+        isSample: rule?.is_placeholder ?? false,
+      },
+      unpricedReason: result.priced ? null : result.reason,
     };
+    },
+    flag: (reason) => flagForReview(db, projectId, reason),
+    record: async (type, summary, details) => {
+      const { data: p } = await db.from("projects").select("contact_id").eq("id", projectId).single();
+      const { error } = await db.from("events").insert({ contact_id: p?.contact_id, project_id: projectId, event_type: type, summary, details, source: "system" });
+      if (error) throw error;
+    },
+    notify: (info) => notifyNewLead({ db, projectId, q, score: scoreInfo, estimate: info }),
   });
+  if (stage.calculationFailed) ok = false;
+  const estimateInfo = stage.info;
 
-  await step("notifications", () =>
-    notifyNewLead({ db, projectId, q, score: scoreInfo, estimate: estimateInfo }),
-  );
-
-  // Placeholder (test) pricing may only be shown while demo mode is on, labelled as a sample. This mirrors the
-  // database rule that keeps invented prices away from real customers.
-  let estimate: IntakeResult["estimate"] = null;
-  const info = estimateInfo as NotifyContext["estimate"];
-  if (info?.priced && info.min !== undefined && info.max !== undefined) {
-    const { data: demo } = await db.from("settings").select("value").eq("key", "demo_mode").maybeSingle();
-    const demoOn = (demo?.value as { enabled?: boolean } | undefined)?.enabled === true;
-    if (!info.isSample || demoOn) estimate = { min: info.min, max: info.max, isSample: info.isSample };
-  }
+  // The visitor sees the range on screen only when it is a real, automatically approved estimate (never placeholder pricing).
+  const info = estimateInfo;
+  const estimate: IntakeResult["estimate"] =
+    info?.priced && !info.isSample && info.min !== undefined && info.max !== undefined ? { min: info.min, max: info.max, isSample: false } : null;
 
   return { project_id: projectId, duplicate: false, fully_processed: ok, estimate };
+}
+
+// Marks the lead as needing a person's attention, keeping any reason already recorded (for example from scoring).
+async function flagForReview(db: ReturnType<typeof createAdminClient>, projectId: string, reason: string) {
+  const { data: p } = await db.from("projects").select("review_status, review_reason").eq("id", projectId).single();
+  const existing = p?.review_status === "needs_review" ? p.review_reason : null;
+  const merged = existing && !existing.includes(reason) ? `${existing} ${reason}` : (existing ?? reason);
+  const { error } = await db.from("projects").update({ review_status: "needs_review", review_reason: merged }).eq("id", projectId);
+  if (error) throw error;
 }

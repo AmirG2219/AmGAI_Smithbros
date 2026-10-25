@@ -15,7 +15,7 @@ export default async function Overview() {
 
   // One parallel batch: a page never waits on more than one round trip to the database.
   const [newLeads, needsReview, hot, booked, recent, me, attention] = await Promise.all([
-    count(projects().eq("stage", "new")),
+    count(projects().in("stage", ["new", "estimate_sent"])),
     count(projects().eq("review_status", "needs_review")),
     count(projects().eq("lead_classification", "hot")),
     count(supabase.from("appointments").select("id", { count: "exact", head: true }).eq("status", "scheduled")),
@@ -25,7 +25,7 @@ export default async function Overview() {
   ]);
 
   const tiles = [
-    { label: "New leads", value: newLeads, Icon: Inbox, href: "/leads" },
+    { label: "Leads to follow up", value: newLeads, Icon: Inbox, href: "/leads" },
     { label: "Hot leads", value: hot, Icon: Flame, href: "/leads?f=hot" },
     { label: "Needs review", value: needsReview, Icon: ShieldAlert, href: "/leads?f=review" },
     { label: "Consultations booked", value: booked, Icon: CalendarCheck, href: "/leads" },

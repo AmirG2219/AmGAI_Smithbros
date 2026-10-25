@@ -216,10 +216,10 @@
     var h = '<div class="done"><div class="tick">' + svg(ICONS.check, 26) + '</div><h2>Thank you, <span id="sb-first"></span></h2>';
     if (S.estimate) {
       var basis = [S.v.sqft ? Number(S.v.sqft).toLocaleString("en-CA") + " ft²" : "", typeName(S.v.type)].filter(Boolean).join(" · ");
-      h += '<div class="est"><div class="estl">Your rough estimate' + (S.estimate.isSample ? " (sample pricing)" : "") + "</div>" +
+      h += '<div class="est"><div class="estl">Your rough estimate' + "" + "</div>" +
         '<div class="estv">' + money(S.estimate.min) + " — " + money(S.estimate.max) + "</div>" +
         (basis ? '<div class="estb">Based on ' + esc(basis) + " · before tax</div>" : "") + "</div>" +
-        '<p class="note">This is a ballpark based on what you’ve told us. We’ll confirm an accurate quote at your free consultation.</p>';
+        '<p class="note">This is a non-binding estimate based on what you’ve told us, subject to an on-site inspection. We’ll give you an accurate quote after we’ve seen the space.</p>';
     } else {
       h += "<p>We’ve received your project details and will be in touch shortly.</p>";
     }

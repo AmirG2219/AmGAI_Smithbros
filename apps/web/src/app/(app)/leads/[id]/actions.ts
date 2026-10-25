@@ -7,6 +7,7 @@ import { sendRecordedEmail } from "@/lib/email/record";
 import { emailEnabled } from "@/lib/email/resend";
 import { calendarLinks, icsFile } from "@/lib/email/calendar";
 import { consultationConfirmationEmail } from "@/lib/email/templates";
+import { sendEstimateForProject } from "@/lib/leads/estimate-send";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { zonedToUtc } from "@/lib/timezone";
 
@@ -207,4 +208,22 @@ export async function markReviewed(projectId: string, formData: FormData) {
 
   revalidatePath(`/leads/${projectId}`);
   redirect(`/leads/${projectId}?notice=reviewed`);
+}
+
+// Sends (or re-sends after a failure) the preliminary estimate that was approved automatically at intake. It can only ever
+// send that exact approved revision; the checks and the demo-mode recipient guard live in sendEstimateForProject.
+export async function sendEstimateAction(projectId: string, estimateId: string) {
+  const me = await requireAdmin();
+  const db = createAdminClient();
+  let notice: string;
+  try {
+    const r = await sendEstimateForProject(db, { projectId, estimateId, actor: { id: me.id, name: me.display_name } });
+    notice = r.ok ? "estimate-sent" : r.code === "skipped" ? "estimate-demo" : `estimate-${r.code}`;
+  } catch (e) {
+    // 23505: this exact send was already recorded (double click).
+    notice = (e as { code?: string })?.code === "23505" ? "estimate-already-sent" : "estimate-failed";
+    if (notice === "estimate-failed") console.error("[estimate] send failed:", e);
+  }
+  revalidatePath(`/leads/${projectId}`);
+  redirect(`/leads/${projectId}?notice=${notice}`);
 }

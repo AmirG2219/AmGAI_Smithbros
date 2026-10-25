@@ -6,7 +6,8 @@ import { label } from "@/lib/leads/inquiry";
 import { createClient } from "@/lib/supabase/server";
 import { Card, PageHeader, Pill } from "../../ui";
 import { missingDetails } from "@/lib/leads/manual";
-import { cancelConsultation, markReviewed, scheduleConsultation } from "./actions";
+import { emailEnabled } from "@/lib/email/resend";
+import { cancelConsultation, markReviewed, scheduleConsultation, sendEstimateAction } from "./actions";
 import { BookConsultation } from "./book-consultation";
 
 const TZ = "America/Edmonton";
@@ -34,6 +35,16 @@ const notices: Record<string, string> = {
   "already-reviewed": "This lead has already been reviewed.",
   "email-sent": "Email sent. It is saved on this lead's timeline.",
   "already-booked": "This lead already has a scheduled consultation. Cancel it first.",
+  "estimate-sent": "Preliminary estimate emailed to the customer.",
+  "estimate-already-sent": "This estimate was already sent.",
+  "estimate-stale": "That estimate is out of date (a newer revision exists). Nothing was sent.",
+  "estimate-not-found": "That estimate could not be found.",
+  "estimate-not-approved": "That estimate is not approved for sending. Nothing was sent.",
+  "estimate-placeholder": "This range uses placeholder pricing, which is never sent to customers. Nothing was sent.",
+  "estimate-email-off": "Email sending is not configured, so nothing was sent. The estimate can be sent once email is set up.",
+  "estimate-no-email": "This customer has no email address. Nothing was sent.",
+  "estimate-demo": "Not sent: demo mode only allows emails to approved test addresses.",
+  "estimate-failed": "The email could not be sent. Nothing was delivered; you can try again.",
   invalid: "That didn't work. Check the date and time and try again.",
 };
 
@@ -62,7 +73,7 @@ export default async function LeadDetail({
     supabase
       .from("projects")
       .select(
-        "*, contacts(first_name, last_name, email, phone), estimates(revision_number, status, price_min, price_max, sent_at), appointments(id, status, start_at, end_at)",
+        "*, contacts(first_name, last_name, email, phone), estimates(id, revision_number, status, price_min, price_max, sent_at, approved_at, pricing_version, pricing_snapshot, calculation_details, review_reason), appointments(id, status, start_at, end_at)",
       )
       .eq("id", id)
       .maybeSingle(),
@@ -84,6 +95,7 @@ export default async function LeadDetail({
   const est = [...(p.estimates ?? [])]
     .filter((e: { status: string }) => e.status !== "cancelled")
     .sort((a: { revision_number: number }, b: { revision_number: number }) => b.revision_number - a.revision_number)[0];
+  const demo = (await supabase.from("settings").select("value").eq("key", "demo_mode").maybeSingle()).data?.value as { enabled?: boolean } | null;
   const upcoming = (p.appointments ?? []).find((a: { status: string }) => a.status === "scheduled");
   const answers = (p.additional_answers ?? {}) as {
     notes?: string;
@@ -224,18 +236,53 @@ export default async function LeadDetail({
           </Card>
 
           <Card className="p-5">
-            <p className="eyebrow mb-2">Estimate</p>
+            <p className="eyebrow mb-2">Preliminary estimate</p>
             {est ? (
               <>
                 <p className="font-serif text-3xl">
                   {est.price_min !== null && est.price_max !== null
                     ? `${money(est.price_min)} – ${money(est.price_max)}`
-                    : "Needs a manual quote"}
+                    : "No price given"}
                 </p>
-                <p className="mt-1 text-sm capitalize text-muted">
-                  Revision {est.revision_number} · {est.status.replaceAll("_", " ")}
-                  {est.sent_at ? ` · emailed ${when(est.sent_at)}` : ""}
+                <p className="mt-1 text-sm text-muted">
+                  Non-binding and subject to inspection. Not a final quote.
                 </p>
+                <p className="mt-2 text-sm">
+                  {est.status === "sent" && est.sent_at
+                    ? `Revision ${est.revision_number} · emailed to the customer ${when(est.sent_at)}`
+                    : est.status === "approved"
+                      ? `Revision ${est.revision_number} · generated, but NOT emailed to the customer yet`
+                      : est.price_min === null
+                        ? "No estimate could be calculated, so the customer received an acknowledgment without a price (see the timeline for whether it was sent)."
+                        : `Revision ${est.revision_number} · ${est.status.replaceAll("_", " ")}`}
+                </p>
+                {est.pricing_version && (
+                  <p className="mt-2 text-sm text-muted">
+                    Pricing rule <span className="font-medium text-walnut">{est.pricing_version}</span>
+                    {est.approved_at ? ", approved automatically by rule" : ""}
+                    {est.calculation_details
+                      ? ` · ${[
+                          est.calculation_details.square_footage ? `${est.calculation_details.square_footage} sq ft` : null,
+                          est.calculation_details.rate_per_sqft ? `$${est.calculation_details.rate_per_sqft.min}–$${est.calculation_details.rate_per_sqft.max} per sq ft` : null,
+                          est.calculation_details.multiplier !== undefined ? `project type × ${est.calculation_details.multiplier}` : null,
+                          est.calculation_details.minimum_applied ? `minimum job charge $${est.calculation_details.minimum_job_charge} applied` : null,
+                        ].filter(Boolean).join(" · ")}`
+                      : ""}
+                  </p>
+                )}
+                {est.review_reason && <p className="mt-2 text-sm text-bronze">{est.review_reason}</p>}
+                {est.status === "approved" && (
+                  <div className="mt-4">
+                    <ul className="mb-3 list-disc space-y-1 pl-5 text-sm text-bronze">
+                      {!c?.email && <li>The customer has no email address.</li>}
+                      {!emailEnabled() && <li>Email sending is not configured, so it cannot be sent yet.</li>}
+                      {demo?.enabled && <li>Demo mode is on: emails only go to approved test addresses.</li>}
+                    </ul>
+                    <form action={sendEstimateAction.bind(null, id, est.id)}>
+                      <button disabled={!c?.email || !emailEnabled()} className="rounded-lg bg-walnut px-4 py-2 text-sm font-medium text-cream transition-colors hover:bg-bronze disabled:cursor-not-allowed disabled:opacity-40">Send estimate now</button>
+                    </form>
+                  </div>
+                )}
               </>
             ) : (
               <p className="text-sm text-muted">No estimate yet.</p>
