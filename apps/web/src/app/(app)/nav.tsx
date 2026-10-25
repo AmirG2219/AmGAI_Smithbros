@@ -19,7 +19,7 @@ const main: Item[] = [
   { href: "/", label: "Overview", Icon: LayoutGrid },
   { href: "/leads", label: "Leads", Icon: Users },
   { href: "/inbox", label: "Inbox", Icon: Mail },
-  { href: "/documents", label: "Documents", Icon: FileStack, also: ["/contracts", "/agreements"] },
+  { href: "/agreements", label: "Agreements", Icon: FileStack, also: ["/documents", "/contracts"] },
   { href: "/campaigns", label: "Marketing Emails", Icon: Send },
 ];
 // Reference data: used often, but not the daily flow, so it sits at the bottom.
