@@ -53,7 +53,8 @@ export async function autoApproveEstimate(
 
 export type SendCode = "not-found" | "not-approved" | "already-sent" | "stale" | "placeholder" | "email-off";
 export type SendResult =
-  | { ok: true; revision: number }
+  // recorded false: the provider accepted the email but the estimate's status could not be saved (do not send it again).
+  | { ok: true; revision: number; recorded?: false }
   | { ok: false; code: SendCode }
   | { ok: false; code: "skipped"; reason: string }
   | { ok: false; code: "failed" };
@@ -87,6 +88,14 @@ export async function sendApprovedEstimate(
   if (r.status === "failed") return { ok: false, code: "failed" };
 
   // sent_at means "accepted by the email provider", not "delivered".
-  await store.transition(e.id, "approved", { status: "sent", sent_at: (a.now ?? new Date()).toISOString() });
-  return { ok: true, revision: e.revision_number };
+  // The email is out, so a failure to save that must never be reported as a failed send. Try twice, then say it is unrecorded.
+  for (let i = 0; i < 2; i++) {
+    try {
+      await store.transition(e.id, "approved", { status: "sent", sent_at: (a.now ?? new Date()).toISOString() });
+      return { ok: true, revision: e.revision_number };
+    } catch (err) {
+      console.error("[estimate] status not saved after the email was accepted:", err);
+    }
+  }
+  return { ok: true, revision: e.revision_number, recorded: false };
 }

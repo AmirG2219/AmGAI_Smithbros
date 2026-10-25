@@ -38,6 +38,7 @@ const notices: Record<string, string> = {
   "email-sent": "Email sent. It is saved on this lead's timeline.",
   "already-booked": "This lead already has a scheduled consultation. Cancel it first.",
   "estimate-sent": "Preliminary estimate emailed to the customer.",
+  "estimate-unrecorded": "The email provider accepted the estimate, but its status could not be saved. Do NOT send it again; see the timeline.",
   "estimate-already-sent": "This estimate was already sent.",
   "estimate-stale": "That estimate is out of date (a newer revision exists). Nothing was sent.",
   "estimate-not-found": "That estimate could not be found.",

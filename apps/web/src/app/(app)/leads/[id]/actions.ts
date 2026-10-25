@@ -221,7 +221,7 @@ export async function sendEstimateAction(projectId: string, estimateId: string) 
   let notice: string;
   try {
     const r = await sendEstimateForProject(db, { projectId, estimateId, actor: { id: me.id, name: me.display_name } });
-    notice = r.ok ? "estimate-sent" : r.code === "skipped" ? "estimate-demo" : `estimate-${r.code}`;
+    notice = r.ok ? (r.recorded === false ? "estimate-unrecorded" : "estimate-sent") : r.code === "skipped" ? "estimate-demo" : `estimate-${r.code}`;
   } catch (e) {
     // 23505: this exact send was already recorded (double click).
     notice = (e as { code?: string })?.code === "23505" ? "estimate-already-sent" : "estimate-failed";

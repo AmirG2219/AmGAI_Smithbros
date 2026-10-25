@@ -8,6 +8,7 @@ import { sendApprovedDraft } from "./assistant/send";
 import { parseInbound } from "./assistant/inbound";
 import { recordSignedReturn, verifySigned } from "./agreements/review";
 import { sendRecordedEmail } from "./email/record";
+import { processInquiry } from "./leads/process";
 import { POST as inboundPOST } from "../app/api/inbound/email/route";
 
 // Reliability audit. Tests marked `todo` assert the DESIRED behaviour for a defect found in the audit: they fail today, do not
@@ -63,6 +64,7 @@ function fakeDb(seed: Tables, opts: { files?: Set<string> } = {}) {
   };
   const storage = {
     from: () => ({
+      remove: async (paths: string[]) => (paths.forEach((p) => files.delete(p)), { error: null }),
       upload: async (path: string) => {
         if (files.has(path)) return { error: new Error("The resource already exists") };
         files.add(path);
@@ -164,13 +166,19 @@ test("a signed upload is evidence only: it marks the agreement returned, never v
   assert.equal(s.t.projects[0].stage, "agreement_sent");
 });
 
-test("DEFECT: a signed-copy upload whose database insert fails leaves the file behind, so every retry fails", { todo: "recordSignedReturn uploads with upsert:false before recording the document" }, async () => {
+test("a signed-copy upload whose database insert fails can be retried: the stray file is removed and never blocks the next attempt", async () => {
   const s = fakeDb({ ...ag("sent"), agreement_documents: [] });
   s.failInsert.add("agreement_documents");
   await assert.rejects(() => recordSignedReturn(s.db, "u1", "a1", pdf));
+  assert.equal(s.files.size, 0, "no file is left behind that nothing records");
   s.failInsert.clear();
-  await recordSignedReturn(s.db, "u1", "a1", pdf); // desired: the retry succeeds
+  await recordSignedReturn(s.db, "u1", "a1", pdf);
   assert.equal(s.t.agreements[0].status, "returned");
+  assert.equal(s.t.agreement_documents.length, 1);
+  // Even if cleanup had not happened, a leftover file cannot collide: every upload gets its own path.
+  s.files.add(`p1/a1/signed-r2-deadbeef.pdf`);
+  await recordSignedReturn(s.db, "u1", "a1", pdf);
+  assert.equal(s.t.agreement_documents.length, 2);
 });
 
 // ---- Email accepted by the provider, then a later step fails ----
@@ -190,13 +198,14 @@ test("estimate: a provider failure or skip leaves the estimate approved and unse
   }
 });
 
-test("DEFECT: estimate emailed, then the database update to 'sent' fails: the estimate stays 'approved' and the call throws instead of reporting the send", { todo: "sendApprovedEstimate lets the transition error escape after delivery" }, async () => {
+test("estimate emailed, then saving 'sent' fails: reported as sent but unrecorded (never as failed), emailed once", async () => {
   const e = row();
   let delivered = 0;
   const store: EstimateStore = { load: async () => e, latestRevision: async () => 1, transition: async () => { throw new Error("db down"); } };
   const r = await sendApprovedEstimate(store, { estimateId: "e1", projectId: "p1", emailEnabled: true, deliver: async () => (delivered++, { status: "sent", providerId: "p", messageId: "m" }) });
   assert.equal(delivered, 1);
   assert.equal(r.ok, true, "the customer has the email, so the result must say so");
+  assert.deepEqual(r, { ok: true, revision: 1, recorded: false });
 });
 
 const draftSeed = () => ({
@@ -251,9 +260,45 @@ test("DEFECT: customer email accepted by the provider but the delivery record up
 
 // ---- Intake after the lead is saved ----
 
-test("DEFECT: intake ignores the 'not fully processed' result, so a lead whose follow-up steps failed is not flagged for staff", { todo: "route.ts discards fully_processed; project-column and lead-assessment failures only log" }, () => {
-  const route = readFileSync(new URL("../app/api/intake/route.ts", import.meta.url), "utf8");
-  assert.match(route, /fully_processed/);
+test("intake: when a follow-up step fails after the lead is saved, the lead is flagged Needs Review for staff and the inquiry is kept", async () => {
+  const state: { review_status: string; review_reason: string | null; events: Row[] } = { review_status: "none", review_reason: null, events: [] };
+  const result = (data: unknown, error: unknown = null) => ({ data, error });
+  const proj = () => ({ review_status: state.review_status, review_reason: state.review_reason, contact_id: "c1", stage: "new", contacts: { first_name: "Ann", email: null } });
+  const from = (table: string) => {
+    let patch: Row | null = null;
+    const b: any = {
+      select: () => b, eq: () => b, order: () => b, limit: () => b,
+      update: (p: Row) => ((patch = p), b),
+      insert: async (r: Row) => (table === "events" && state.events.push(r), result(null)),
+      maybeSingle: async () => result(null),
+      single: async () => result(table === "projects" ? proj() : null),
+      then: (res: any) => {
+        if (table === "projects" && patch) {
+          if ("project_type" in patch) return Promise.resolve(result(null, { message: "columns failed" })).then(res); // step 1 fails
+          Object.assign(state, patch);
+        }
+        return Promise.resolve(result(null)).then(res);
+      },
+    };
+    return b;
+  };
+  const rpc = async (name: string) =>
+    name === "submit_website_inquiry" ? result({ project_id: "p1", outcome: "created" }) : name === "record_lead_assessment" ? result(null, { message: "assessment failed" }) : result({ estimate_id: "e1" });
+  const db = { from, rpc } as unknown as Parameters<typeof processInquiry>[1];
+  delete process.env.EMAIL_SENDING_ENABLED;
+  const q = { submission_key: "k", first_name: "Ann", last_name: null, email: "ann@example.com", phone: null, city: null, postal_code: null, project_type: "new_installation", material: "hardwood", square_footage: 500, timeline: "1_3_months", rooms: null, species: null, pattern: null, finish: null, preferred_contact: null, notes: null } as unknown as Parameters<typeof processInquiry>[0];
+  const quiet = console.error;
+  console.error = () => {};
+  let r;
+  try {
+    r = await processInquiry(q, db);
+  } finally {
+    console.error = quiet;
+  }
+  assert.equal(r.project_id, "p1", "the lead is kept and returned");
+  assert.equal(r.fully_processed, false);
+  assert.equal(state.review_status, "needs_review");
+  assert.match(state.review_reason ?? "", /project columns, lead assessment/);
 });
 
 test("duplicate website submissions return success without processing again (and never email twice)", () => {

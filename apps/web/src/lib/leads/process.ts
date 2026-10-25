@@ -17,8 +17,7 @@ export type IntakeResult = {
 
 // Saves the lead, then scores it and records a draft estimate. The first step is the one that
 // must succeed; later steps are best-effort so a customer's inquiry is never lost.
-export async function processInquiry(q: Inquiry): Promise<IntakeResult> {
-  const db = createAdminClient();
+export async function processInquiry(q: Inquiry, db: ReturnType<typeof createAdminClient> = createAdminClient()): Promise<IntakeResult> {
   const requestId = randomUUID();
 
   const { data: intake, error } = await db.rpc("submit_website_inquiry", {
@@ -51,11 +50,13 @@ export async function processInquiry(q: Inquiry): Promise<IntakeResult> {
     return { project_id: projectId, duplicate: true, fully_processed: true, estimate: null };
 
   let ok = true;
+  const failedSteps: string[] = [];
   const step = async (name: string, fn: () => Promise<void>) => {
     try {
       await fn();
     } catch (e) {
       ok = false;
+      failedSteps.push(name);
       console.error(`[intake] ${name} failed for project ${projectId}:`, e);
     }
   };
@@ -200,6 +201,13 @@ export async function processInquiry(q: Inquiry): Promise<IntakeResult> {
     notify: (info) => notifyNewLead({ db, projectId, q, score: scoreInfo, estimate: info }),
   });
   if (stage.calculationFailed) ok = false;
+  // The lead is saved, but a follow-up step did not finish: staff must see it on the lead, not only in the server log.
+  if (failedSteps.length > 0)
+    try {
+      await flagForReview(db, projectId, `Automatic processing did not finish (${failedSteps.join(", ")}). Please check this lead's details and score by hand.`);
+    } catch (e) {
+      console.error(`[intake] could not flag project ${projectId} for review:`, e);
+    }
   const estimateInfo = stage.info;
 
   // The visitor sees the range on screen only when it is a real, automatically approved estimate (never placeholder pricing).

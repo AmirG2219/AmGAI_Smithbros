@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { UserError, loadContext, logEvent } from "./build";
 import { syncWonFromContract } from "./project-stage";
@@ -25,7 +25,8 @@ export async function recordSignedReturn(db: SupabaseClient, adminId: string, id
 
   const revision =
     Math.max(0, ...(a.agreement_documents as { revision_number: number; document_kind: string }[]).filter((d) => d.document_kind === "signed_return").map((d) => d.revision_number)) + 1;
-  const path = `${a.project_id}/${id}/signed-r${revision}.pdf`;
+  // A random suffix means a file left behind by an interrupted upload can never block the next attempt.
+  const path = `${a.project_id}/${id}/signed-r${revision}-${randomUUID().slice(0, 8)}.pdf`;
   const up = await db.storage.from("agreements").upload(path, file, { contentType: "application/pdf", upsert: false });
   if (up.error) throw up.error;
 
@@ -39,7 +40,10 @@ export async function recordSignedReturn(db: SupabaseClient, adminId: string, id
     size_bytes: file.byteLength,
     uploaded_by: adminId,
   });
-  if (doc.error) throw new UserError(dbMessage(doc.error.message));
+  if (doc.error) {
+    await db.storage.from("agreements").remove([path]).catch(() => undefined); // best effort: nothing records this file
+    throw new UserError(dbMessage(doc.error.message));
+  }
 
   if (a.status !== "returned") {
     const st = await db.from("agreements").update({ status: "returned" }).eq("id", id);

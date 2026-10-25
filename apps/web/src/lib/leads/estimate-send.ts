@@ -66,7 +66,15 @@ export async function sendEstimateForProject(
   const details = { estimate_id: a.estimateId };
   if (r.ok) {
     if (c.stage === "new") await db.from("projects").update({ stage: "estimate_sent" }).eq("id", a.projectId).eq("stage", "new");
-    await event(db, c, a.projectId, a.actor, "estimate.sent", `Preliminary estimate (revision ${r.revision}) emailed to the customer${a.actor ? ` by ${a.actor.name}` : " automatically"}`, details);
+    await event(
+      db,
+      c,
+      a.projectId,
+      a.actor,
+      "estimate.sent",
+      `Preliminary estimate (revision ${r.revision}) emailed to the customer${a.actor ? ` by ${a.actor.name}` : " automatically"}${r.recorded === false ? ". The email provider accepted it but the estimate's status could not be saved: do not send it again" : ""}`,
+      details,
+    );
   } else if (r.code === "skipped") {
     await event(db, c, a.projectId, a.actor, "estimate.send_skipped", `Estimate not emailed: ${r.reason}`, details);
   } else if (r.code === "failed") {
