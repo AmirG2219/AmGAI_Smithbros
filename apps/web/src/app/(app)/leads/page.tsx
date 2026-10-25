@@ -85,7 +85,7 @@ export default async function Leads({
           name="q"
           defaultValue={term}
           placeholder="Search name, email or phone"
-          className="min-w-0 flex-1 rounded-lg border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-bronze sm:max-w-xs"
+          className="min-w-0 flex-1 rounded-lg border border-line bg-surface px-3 py-2.5 text-sm outline-none focus:border-bronze sm:max-w-xs"
         />
         <button className="rounded-lg border border-walnut px-4 py-2.5 text-sm font-medium hover:bg-walnut hover:text-cream">Search</button>
         {term && (

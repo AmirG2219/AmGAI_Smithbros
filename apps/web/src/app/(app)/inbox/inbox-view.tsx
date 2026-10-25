@@ -42,9 +42,9 @@ import { OPEN_DRAFT, type AttachT, type DraftT, type EmailT, type LinkInfo, type
 // The inbox lives in the browser: the list, every email's details and its draft are loaded once, so opening an email,
 // switching between emails and closing one are instant. Only saving, sending and rewriting talk to the server.
 
-const input = "w-full rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none focus:border-bronze";
+const input = "w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-bronze";
 const btn = "inline-flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50";
-const ghost = `${btn} border border-line bg-white hover:border-bronze disabled:hover:border-line`;
+const ghost = `${btn} border border-line bg-surface hover:border-bronze disabled:hover:border-line`;
 
 const NOTICES: Record<string, string> = {
   drafted: "A suggested reply is ready. Read it and edit anything before you send.",
@@ -104,10 +104,10 @@ function Attachments({ files }: { files: AttachT[] }) {
         const stored = f.stored !== false;
         const previewable = stored && !risky && PREVIEWABLE.test(f.filename);
         return (
-          <div key={f.id} className={`flex flex-wrap items-center gap-x-2.5 gap-y-1 rounded-lg border px-3 py-1.5 text-sm ${stored ? "border-line bg-white" : "border-dashed border-[#c9b9a3] bg-cream/40"}`}>
+          <div key={f.id} className={`flex flex-wrap items-center gap-x-2.5 gap-y-1 rounded-lg border px-3 py-1.5 text-sm ${stored ? "border-line bg-surface" : "border-dashed border-[#c9b9a3] bg-cream/40"}`}>
             <Paperclip size={13} className="shrink-0" />
             <span className="min-w-0 max-w-full flex-1 truncate" title={f.filename}>{f.filename}</span>
-            <span className="text-xs text-[#6b5d4f]">{kb(f.size_bytes)}</span>
+            <span className="text-xs text-subtle">{kb(f.size_bytes)}</span>
             {risky && <span className="rounded bg-[#F8E1DB] px-1.5 text-xs text-[#A23A25]">Be careful</span>}
             {stored ? (
               <span className="flex items-center gap-1.5">
@@ -119,10 +119,10 @@ function Attachments({ files }: { files: AttachT[] }) {
                 <a href={`/api/inbox/attachments/${f.id}`} aria-label={`Download ${f.filename}`} className={act}>
                   <Download size={12} /> Download
                 </a>
-                {!previewable && <span className="text-xs text-[#6b5d4f]">No preview</span>}
+                {!previewable && <span className="text-xs text-subtle">No preview</span>}
               </span>
             ) : (
-              <span className="text-xs text-[#6b5d4f]">Over the size limit, so it wasn&apos;t saved. Not available to preview or download. Ask the sender to resend it smaller.</span>
+              <span className="text-xs text-subtle">Over the size limit, so it wasn&apos;t saved. Not available to preview or download. Ask the sender to resend it smaller.</span>
             )}
           </div>
         );
@@ -161,8 +161,8 @@ function Skeleton() {
 function MessageCard({ m, defaultOpen }: { m: MsgT; defaultOpen: boolean }) {
   const mine = m.direction === "outbound";
   return (
-    <details open={defaultOpen} className={`group rounded-xl border ${mine ? "border-bronze/30 bg-cream/70" : "border-line bg-white"}`}>
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3.5 py-2 text-xs text-[#6b5d4f]">
+    <details open={defaultOpen} className={`group rounded-xl border ${mine ? "border-bronze/30 bg-cream/70" : "border-line bg-surface"}`}>
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3.5 py-2 text-xs text-subtle">
         <span className="min-w-0 truncate" suppressHydrationWarning>
           <span className="font-medium text-ink">{mine ? "You" : m.from_name || m.from_address}</span> · {long(m.received_at)}
         </span>
@@ -198,13 +198,13 @@ function LinkCard({
     const where = [p?.site_address_line1, p?.site_city].filter(Boolean).join(", ");
     const contact = [info?.contact?.phone, info?.contact?.email].filter(Boolean).join(" · ");
     const projectLine = p ? [p.project_type?.replaceAll("_", " "), where, p.stage?.replaceAll("_", " ")].filter(Boolean).join(" · ") : "Linked project";
-    const lab = "text-[11px] font-medium uppercase tracking-[0.15em] text-[#6b5d4f]";
+    const lab = "text-[11px] font-medium uppercase tracking-[0.15em] text-subtle";
     return (
       <div className="grid gap-x-6 gap-y-2 rounded-xl border border-bronze/30 bg-cream/60 px-4 py-3 text-sm sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto] sm:items-center">
         <div className="min-w-0">
           <p className={lab}>Customer</p>
           <Link href={`/contacts/${c.id}`} className="block truncate font-medium text-bronze hover:underline">{name}</Link>
-          {contact && <p className="truncate text-xs text-[#6b5d4f]">{contact}</p>}
+          {contact && <p className="truncate text-xs text-subtle">{contact}</p>}
         </div>
         {(p || email.project_id) && (
           <>
@@ -221,9 +221,9 @@ function LinkCard({
     );
   }
   return (
-    <div className="rounded-xl border border-dashed border-line bg-white px-3.5 py-2.5 text-sm">
+    <div className="rounded-xl border border-dashed border-line bg-surface px-3.5 py-2.5 text-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-[#6b5d4f]">Unknown sender. They aren&apos;t in your client list yet.</span>
+        <span className="text-subtle">Unknown sender. They aren&apos;t in your client list yet.</span>
         {!adding && (
           <button onClick={() => setAdding(true)} className={`${ghost} !py-1 text-xs`}>
             <UserPlus size={13} /> Create contact
@@ -320,10 +320,10 @@ function Composer({
         <button disabled={!ai || busy} onClick={() => onImprove(body)} title={ai ? "Rewrite this draft" : "Available once AI is set up"} className={ghost}>
           <Sparkles size={14} /> Improve
         </button>
-        <button disabled={busy} onClick={onDiscard} className="px-2 py-2 text-sm text-[#6b5d4f] underline hover:text-walnut">
+        <button disabled={busy} onClick={onDiscard} className="px-2 py-2 text-sm text-subtle underline hover:text-walnut">
           Discard
         </button>
-        <span className="ml-auto text-xs text-[#6b5d4f]">{saved ? "Saved" : "Unsaved changes"}</span>
+        <span className="ml-auto text-xs text-subtle">{saved ? "Saved" : "Unsaved changes"}</span>
       </div>
       {!connected && <p className="text-xs text-bronze">Gmail isn&apos;t connected yet, so Send is off. Your draft is kept and can be sent once it is.</p>}
     </div>
@@ -503,26 +503,26 @@ export function InboxView(props: Props) {
   const hasPanel = !!selected || composing;
 
   return (
-    <div className="flex flex-col gap-3 lg:h-[calc(100dvh-5rem)]">
+    <div className="flex flex-col gap-3 lg:h-[calc(100dvh-8.5rem)]">
       {/* Title, search and Compose. On a phone, an open email takes the whole screen, so these step aside. */}
       <div className={`flex-wrap items-center gap-3 ${hasPanel ? "hidden lg:flex" : "flex"}`}>
         <h1 className="font-serif text-3xl">Inbox</h1>
         <form action="/inbox" className="relative order-last min-w-0 basis-full sm:order-none sm:basis-auto sm:flex-1 sm:max-w-sm">
-          <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#6b5d4f]" />
+          <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-subtle" />
           <input
             name="q"
             defaultValue={query}
             placeholder="Search all mail"
             aria-label="Search all mail"
-            className="w-full rounded-full border border-line bg-white py-2 pl-9 pr-9 text-sm outline-none focus:border-bronze"
+            className="w-full rounded-full border border-line bg-surface py-2 pl-9 pr-9 text-sm outline-none focus:border-bronze"
           />
           {query && (
-            <Link href="/inbox" aria-label="Clear search" className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-[#6b5d4f] hover:text-walnut">
+            <Link href="/inbox" aria-label="Clear search" className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-subtle hover:text-walnut">
               <X size={14} />
             </Link>
           )}
         </form>
-        {props.unread > 0 && <span className="text-xs text-[#6b5d4f]">{props.unread} unread</span>}
+        {props.unread > 0 && <span className="text-xs text-subtle">{props.unread} unread</span>}
         {newMail && (
           <button
             onClick={() => {
@@ -553,7 +553,7 @@ export function InboxView(props: Props) {
             role="tab"
             aria-selected={tab === t.key}
             className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-1 text-sm ${
-              tab === t.key ? "border-walnut bg-walnut text-cream" : "border-line bg-card text-[#6b5d4f] hover:text-walnut"
+              tab === t.key ? "border-walnut bg-walnut text-cream" : "border-line bg-card text-subtle hover:text-walnut"
             }`}
           >
             {t.label}
@@ -562,7 +562,7 @@ export function InboxView(props: Props) {
         ))}
       </div>
       {query && (
-        <p className={`text-sm text-[#6b5d4f] ${hasPanel ? "hidden lg:block" : ""}`}>
+        <p className={`text-sm text-subtle ${hasPanel ? "hidden lg:block" : ""}`}>
           {total} result{total === 1 ? "" : "s"} for &ldquo;{query}&rdquo; in all mail
         </p>
       )}
@@ -572,7 +572,7 @@ export function InboxView(props: Props) {
         <section className={`min-w-0 lg:min-h-0 lg:overflow-y-auto lg:pr-1 ${hasPanel ? "hidden lg:block" : ""}`} aria-label="Emails">
           {tab === "waiting" ? (
             waiting.length === 0 ? (
-              <div className="rounded-2xl border border-line bg-card px-6 py-10 text-center text-sm text-[#6b5d4f]">
+              <div className="rounded-2xl border border-line bg-card px-6 py-10 text-center text-sm text-subtle">
                 No one is overdue. Everyone you replied to has answered, or it hasn&apos;t been 3 days yet.
               </div>
             ) : (
@@ -582,7 +582,7 @@ export function InboxView(props: Props) {
                     <button onClick={() => open(w.emailId)} className="block w-full text-left">
                       <p className="truncate text-sm font-medium">{w.name}</p>
                       <p className="truncate text-sm">{w.subject || "(no subject)"}</p>
-                      <p className="mt-1 flex items-center gap-1.5 text-xs text-[#6b5d4f]">
+                      <p className="mt-1 flex items-center gap-1.5 text-xs text-subtle">
                         <CalendarClock size={13} /> You replied {w.daysWaiting} days ago. No answer yet.
                       </p>
                     </button>
@@ -594,7 +594,7 @@ export function InboxView(props: Props) {
               </ul>
             )
           ) : shown.length === 0 ? (
-            <div className="rounded-2xl border border-line bg-card px-6 py-10 text-center text-sm text-[#6b5d4f]">
+            <div className="rounded-2xl border border-line bg-card px-6 py-10 text-center text-sm text-subtle">
               {tab === "reply" ? "Nothing needs a reply right now." : tab === "sent" ? "No sent mail yet. Replies appear here once Gmail is connected and they are sent." : "Nothing here yet."}
             </div>
           ) : (
@@ -615,7 +615,7 @@ export function InboxView(props: Props) {
                       onClick={() => open(e.id)}
                       aria-current={selected === e.id}
                       className={`relative block w-full overflow-hidden rounded-xl border py-2.5 pl-4 pr-3 text-left transition-colors before:absolute before:inset-y-0 before:left-0 before:w-1 hover:border-bronze ${pr.edge} ${
-                        selected === e.id ? "border-bronze bg-cream/70" : unread ? "border-line bg-white" : "border-line bg-card"
+                        selected === e.id ? "border-bronze bg-cream/70" : unread ? "border-line bg-surface" : "border-line bg-card"
                       }`}
                     >
                       <span className="flex items-center justify-between gap-2">
@@ -623,10 +623,10 @@ export function InboxView(props: Props) {
                           {unread && <span aria-label="Unread" className="h-2 w-2 shrink-0 rounded-full bg-bronze" />}
                           <span className="truncate">{who}</span>
                         </span>
-                        <span className="shrink-0 text-xs text-[#6b5d4f]" suppressHydrationWarning>{short(e.received_at)}</span>
+                        <span className="shrink-0 text-xs text-subtle" suppressHydrationWarning>{short(e.received_at)}</span>
                       </span>
                       <span className={`mt-0.5 block truncate text-sm ${unread ? "font-semibold" : ""}`}>{e.subject || "(no subject)"}</span>
-                      <span className="block truncate text-xs text-[#6b5d4f]">{e.summary ?? e.body_text.replace(/\s+/g, " ").slice(0, 120)}</span>
+                      <span className="block truncate text-xs text-subtle">{e.summary ?? e.body_text.replace(/\s+/g, " ").slice(0, 120)}</span>
                       {(sent || hasDraft || unread || needsReply || (e.priority === "urgent" || e.priority === "high") || cat || e.inbox_attachments?.length > 0 || e.analysis_status === "pending") && (
                         <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
                           {unread && <span className="rounded-full bg-bronze px-2 py-0.5 text-xs font-semibold text-white">Unread</span>}
@@ -644,11 +644,11 @@ export function InboxView(props: Props) {
                           {(e.priority === "urgent" || e.priority === "high") && <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${pr.chip}`}>{pr.label}</span>}
                           {cat && <span className={`rounded-full px-2 py-0.5 text-xs ${cat.chip}`}>{cat.label}</span>}
                           {e.inbox_attachments?.length > 0 && (
-                            <span className="inline-flex items-center gap-1 text-xs text-[#6b5d4f]">
+                            <span className="inline-flex items-center gap-1 text-xs text-subtle">
                               <Paperclip size={11} /> {e.inbox_attachments.length}
                             </span>
                           )}
-                          {e.analysis_status === "pending" && <span className="text-xs text-[#6b5d4f]">Analyzing…</span>}
+                          {e.analysis_status === "pending" && <span className="text-xs text-subtle">Analyzing…</span>}
                         </span>
                       )}
                     </button>
@@ -661,16 +661,16 @@ export function InboxView(props: Props) {
         </section>
 
         {composing ? (
-          <div className="flex max-h-[calc(100dvh-10rem)] min-h-0 flex-col lg:max-h-[calc(100dvh-11rem)] lg:self-start">
+          <div className="flex max-h-[calc(100dvh-13.5rem)] min-h-0 flex-col lg:max-h-[calc(100dvh-14.5rem)] lg:self-start">
             <Compose connected={connected} onClose={() => setComposing(false)} />
           </div>
         ) : (
           <section
-            className={`min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border border-line bg-card ${selected ? "flex max-h-[calc(100dvh-10rem)] lg:max-h-[calc(100dvh-11rem)] lg:self-start" : "hidden lg:flex lg:h-full"}`}
+            className={`min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border border-line bg-card ${selected ? "flex max-h-[calc(100dvh-13.5rem)] lg:max-h-[calc(100dvh-14.5rem)] lg:self-start" : "hidden lg:flex lg:h-full"}`}
             aria-label="Selected email"
           >
             {!selected ? (
-              <div className="m-auto grid justify-items-center gap-2 px-6 text-center text-sm text-[#6b5d4f]">
+              <div className="m-auto grid justify-items-center gap-2 px-6 text-center text-sm text-subtle">
                 <InboxIcon size={28} className="text-bronze" />
                 <p>Pick an email to read the conversation and reply.</p>
                 <p className="text-xs">Or press Compose to write a new message.</p>
@@ -678,14 +678,14 @@ export function InboxView(props: Props) {
             ) : !email ? (
               <Skeleton />
             ) : (
-              <div key={email.id} className="panel-in flex min-h-0 min-w-0 max-h-[calc(100dvh-10rem)] flex-col lg:max-h-[calc(100dvh-11rem)]">
+              <div key={email.id} className="panel-in flex min-h-0 min-w-0 max-h-[calc(100dvh-13.5rem)] flex-col lg:max-h-[calc(100dvh-14.5rem)]">
                 {/* Header and actions stay in view; only the conversation scrolls. */}
                 <div className="border-b border-line px-4 py-3">
                   <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-walnut font-serif text-gold">{initials(sender.replace(/^To: /, ""))}</span>
                     <div className="min-w-0 flex-1 basis-40">
                       <h2 className="truncate font-serif text-xl leading-tight">{email.subject || "(no subject)"}</h2>
-                      <p className="truncate text-xs text-[#6b5d4f]" suppressHydrationWarning>
+                      <p className="truncate text-xs text-subtle" suppressHydrationWarning>
                         {sender}
                         {email.direction === "inbound" && email.from_name ? ` <${email.from_address}>` : ""} · {long(email.received_at)}
                       </p>
@@ -706,7 +706,7 @@ export function InboxView(props: Props) {
                             Reopen
                           </button>
                         ))}
-                      <button onClick={close} aria-label="Close" className={`${ghost} !px-2.5 !py-1.5 text-[#6b5d4f]`}>
+                      <button onClick={close} aria-label="Close" className={`${ghost} !px-2.5 !py-1.5 text-subtle`}>
                         <X size={14} /> <span className="lg:hidden">Back</span>
                       </button>
                     </div>
@@ -732,17 +732,17 @@ export function InboxView(props: Props) {
                         {email.summary ? (
                           <>
                             <p className="leading-relaxed">{email.summary}</p>
-                            {email.suggested_action && <p className="mt-1.5"><span className="text-[#6b5d4f]">Next step: </span>{email.suggested_action}</p>}
-                            <p className="mt-1.5 text-xs text-[#6b5d4f]">AI summary. Please check it against the email.</p>
+                            {email.suggested_action && <p className="mt-1.5"><span className="text-subtle">Next step: </span>{email.suggested_action}</p>}
+                            <p className="mt-1.5 text-xs text-subtle">AI summary. Please check it against the email.</p>
                           </>
                         ) : (
-                          <p className="text-[#6b5d4f]">No summary has been prepared for this conversation.</p>
+                          <p className="text-subtle">No summary has been prepared for this conversation.</p>
                         )}
                       </div>
                     )}
 
                     {messages.length > 1 && (
-                      <p className="text-xs uppercase tracking-[0.15em] text-[#6b5d4f]">{messages.length} messages in this conversation</p>
+                      <p className="text-xs uppercase tracking-[0.15em] text-subtle">{messages.length} messages in this conversation</p>
                     )}
                     {messages.slice(0, -1).map((m) => (
                       <MessageCard key={m.id} m={m} defaultOpen={false} />
@@ -750,7 +750,7 @@ export function InboxView(props: Props) {
                     {latest && email.body_html && !showPlain && latest.id === email.id ? (
                       <div className="grid gap-1.5">
                         <HtmlBody html={email.body_html} />
-                        <p className="flex flex-wrap items-center justify-between gap-2 text-xs text-[#6b5d4f]">
+                        <p className="flex flex-wrap items-center justify-between gap-2 text-xs text-subtle">
                           <span>Pictures are hidden to protect your privacy.</span>
                           <button onClick={() => setShowPlain(true)} className="underline hover:text-walnut">
                             Show as plain text
@@ -762,7 +762,7 @@ export function InboxView(props: Props) {
                         <>
                           <MessageCard key={latest.id} m={latest} defaultOpen />
                           {email.body_html && latest.id === email.id && (
-                            <button onClick={() => setShowPlain(false)} className="w-fit text-xs text-[#6b5d4f] underline hover:text-walnut">
+                            <button onClick={() => setShowPlain(false)} className="w-fit text-xs text-subtle underline hover:text-walnut">
                               Show formatted
                             </button>
                           )}
@@ -776,7 +776,7 @@ export function InboxView(props: Props) {
                 {email.direction === "inbound" && (
                   <div className="max-h-[32dvh] shrink-0 lg:max-h-[45dvh] overflow-y-auto border-t border-line bg-cream/50 px-4 py-3">
                     <div className="mb-2 flex flex-wrap items-center gap-1.5">
-                      <span className="mr-1 text-xs font-medium uppercase tracking-[0.15em] text-[#6b5d4f]">Reply</span>
+                      <span className="mr-1 text-xs font-medium uppercase tracking-[0.15em] text-subtle">Reply</span>
                       {/* AI actions: off until an AI key is added. Anything they produce is a draft that a person reviews. */}
                       <button
                         disabled={!ai}
@@ -794,7 +794,7 @@ export function InboxView(props: Props) {
                       >
                         <Sparkles size={12} /> {writing ? "Writing…" : "Suggest reply"}
                       </button>
-                      {!ai && <span className="text-xs text-[#6b5d4f]">AI assistance isn&apos;t set up yet. Suggestions are always reviewed before sending.</span>}
+                      {!ai && <span className="text-xs text-subtle">AI assistance isn&apos;t set up yet. Suggestions are always reviewed before sending.</span>}
                     </div>
                     {openDraft ? (
                       <Composer
@@ -818,7 +818,7 @@ export function InboxView(props: Props) {
                         <button disabled={pending} onClick={doBlank} className={`${btn} bg-walnut text-cream hover:bg-bronze`}>
                           <PenLine size={14} /> {sentDraft ? "Write another reply" : "Write reply"}
                         </button>
-                        {email.status !== "open" && <span className="text-xs text-[#6b5d4f]">This email is closed. You can still write a reply.</span>}
+                        {email.status !== "open" && <span className="text-xs text-subtle">This email is closed. You can still write a reply.</span>}
                       </div>
                     )}
                   </div>

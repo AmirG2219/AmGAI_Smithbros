@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { createLeadAction, type NewLeadState } from "./actions";
 
-const input = "w-full rounded-lg border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-bronze";
+const input = "w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm outline-none focus:border-bronze";
 const labelCls = "mb-1 block text-xs font-medium uppercase tracking-[0.15em] text-muted";
 const go = "rounded-lg bg-walnut px-5 py-2.5 text-sm font-medium text-cream transition-colors hover:bg-bronze disabled:opacity-60";
 
@@ -118,7 +118,7 @@ export function NewLeadForm({
           <p className="font-medium">This phone number is already on file. Is it the same customer?</p>
           <ul className="mt-2 grid gap-1.5">
             {matches.map((m) => (
-              <li key={m.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white px-3 py-2">
+              <li key={m.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-surface px-3 py-2">
                 <span>
                   <strong>{m.name}</strong>
                   <span className="text-muted">{[m.email, m.phone].filter(Boolean).map((x) => ` · ${x}`).join("")}</span>

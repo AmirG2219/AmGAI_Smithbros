@@ -5,7 +5,7 @@ import { useFormStatus } from "react-dom";
 import { Check, FileUp, Link2, MoreHorizontal, Send, X } from "lucide-react";
 import { secureLinkAction } from "./actions";
 
-export const input = "w-full rounded-lg border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-bronze";
+export const input = "w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm outline-none focus:border-bronze";
 export const labelCls = "mb-1 block text-xs font-medium uppercase tracking-[0.15em] text-muted";
 
 export function Submit({ children, pending: text, className }: { children: React.ReactNode; pending?: string; className?: string }) {
@@ -52,7 +52,7 @@ export function SendDialog({
   const disabled = blockers.length > 0;
   const btn = primary
     ? "bg-walnut text-cream hover:bg-bronze"
-    : "border border-line bg-white text-walnut hover:border-bronze";
+    : "border border-line bg-surface text-walnut hover:border-bronze";
   return (
     <>
       <button
@@ -67,7 +67,7 @@ export function SendDialog({
       <dialog
         ref={ref}
         onClick={(e) => e.target === ref.current && ref.current?.close()}
-        className="m-auto w-[calc(100%-2rem)] max-w-lg rounded-2xl border border-line bg-cream p-0 text-ink shadow-2xl backdrop:bg-walnut/50 backdrop:backdrop-blur-[2px]"
+        className="m-auto w-[calc(100%-2rem)] max-w-lg rounded-2xl border border-line bg-cream p-0 text-ink shadow-2xl backdrop:bg-black/50 backdrop:backdrop-blur-[2px]"
       >
         <form action={action} className="grid gap-4 p-6">
           <div className="flex items-start justify-between gap-4">
@@ -95,7 +95,7 @@ export function SendDialog({
             <input id="subject" name="subject" required defaultValue={subject} className={input} />
           </div>
           {alsoOption && (
-            <label className="flex items-start gap-2 rounded-lg bg-white px-3 py-2.5 text-sm">
+            <label className="flex items-start gap-2 rounded-lg bg-surface px-3 py-2.5 text-sm">
               <input type="checkbox" name="also" value={alsoOption.id} defaultChecked className="mt-0.5" />
               <span>{alsoOption.label}</span>
             </label>
@@ -137,13 +137,13 @@ export function CopyLink({ documentId, menu = false }: { documentId: string; men
         type="button"
         onClick={copy}
         disabled={state === "busy"}
-        className={menu ? "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-cream disabled:opacity-60" : "inline-flex w-full items-center justify-center gap-2 rounded-lg border border-line bg-white px-4 py-2.5 text-sm hover:border-bronze disabled:opacity-60"}
+        className={menu ? "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-cream disabled:opacity-60" : "inline-flex w-full items-center justify-center gap-2 rounded-lg border border-line bg-surface px-4 py-2.5 text-sm hover:border-bronze disabled:opacity-60"}
       >
         {state === "copied" ? <Check size={14} /> : <Link2 size={14} />}
         {state === "copied" ? "Link copied" : state === "error" ? "Could not create link" : "Copy secure link"}
       </button>
       {url && (
-        <input readOnly value={url} onFocus={(e) => e.currentTarget.select()} className="mt-2 w-full rounded-lg border border-line bg-white px-2 py-1.5 text-xs text-muted" aria-label="Secure link" />
+        <input readOnly value={url} onFocus={(e) => e.currentTarget.select()} className="mt-2 w-full rounded-lg border border-line bg-surface px-2 py-1.5 text-xs text-muted" aria-label="Secure link" />
       )}
       {!menu && <p className="mt-1 text-xs text-muted">Expires in 7 days.</p>}
     </div>
@@ -159,7 +159,7 @@ export function ConfirmButton({ children, message, className }: { children: Reac
       onClick={(e) => {
         if (!confirm(message)) e.preventDefault();
       }}
-      className={className ?? "w-full rounded-lg border border-line bg-white px-4 py-2.5 text-sm hover:border-bronze disabled:opacity-60"}
+      className={className ?? "w-full rounded-lg border border-line bg-surface px-4 py-2.5 text-sm hover:border-bronze disabled:opacity-60"}
     >
       {children}
     </button>
@@ -182,7 +182,7 @@ export function MoreMenu({ children }: { children: React.ReactNode }) {
   }, []);
   return (
     <details ref={ref} className="relative">
-      <summary className="flex cursor-pointer list-none items-center gap-1.5 rounded-lg border border-line bg-white px-3.5 py-2.5 text-sm hover:border-bronze [&::-webkit-details-marker]:hidden">
+      <summary className="flex cursor-pointer list-none items-center gap-1.5 rounded-lg border border-line bg-surface px-3.5 py-2.5 text-sm hover:border-bronze [&::-webkit-details-marker]:hidden">
         <MoreHorizontal size={16} /> More
       </summary>
       <div className="absolute right-0 z-20 mt-1.5 grid w-56 gap-0.5 rounded-xl border border-line bg-card p-1.5 shadow-lg">{children}</div>
@@ -200,14 +200,14 @@ export function UploadDialog({ action, primary, label }: { action: string; prima
       <button
         type="button"
         onClick={() => ref.current?.showModal()}
-        className={`inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors ${primary ? "bg-walnut text-cream hover:bg-bronze" : "border border-line bg-white text-walnut hover:border-bronze"}`}
+        className={`inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors ${primary ? "bg-walnut text-cream hover:bg-bronze" : "border border-line bg-surface text-walnut hover:border-bronze"}`}
       >
         <FileUp size={14} /> {label}
       </button>
       <dialog
         ref={ref}
         onClick={(e) => e.target === ref.current && ref.current?.close()}
-        className="m-auto w-[calc(100%-2rem)] max-w-md rounded-2xl border border-line bg-cream p-0 text-ink shadow-2xl backdrop:bg-walnut/50 backdrop:backdrop-blur-[2px]"
+        className="m-auto w-[calc(100%-2rem)] max-w-md rounded-2xl border border-line bg-cream p-0 text-ink shadow-2xl backdrop:bg-black/50 backdrop:backdrop-blur-[2px]"
       >
         <form action={action} method="post" encType="multipart/form-data" className="grid gap-4 p-6">
           <div className="flex items-start justify-between gap-4">
@@ -221,7 +221,7 @@ export function UploadDialog({ action, primary, label }: { action: string; prima
           </div>
           <div>
             <label className={labelCls} htmlFor="file">Signed PDF (max 15 MB)</label>
-            <input id="file" name="file" type="file" accept="application/pdf" required className="w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-white file:px-3 file:py-2 file:text-sm" />
+            <input id="file" name="file" type="file" accept="application/pdf" required className="w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-surface file:px-3 file:py-2 file:text-sm" />
           </div>
           <div className="flex justify-end gap-3">
             <button type="button" onClick={() => ref.current?.close()} className="rounded-lg border border-line px-5 py-2.5 text-sm hover:border-bronze">Cancel</button>

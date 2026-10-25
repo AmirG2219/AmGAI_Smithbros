@@ -6,7 +6,7 @@ import { Plus, X } from "lucide-react";
 import { MANUAL_SOURCES, SOURCE_LABELS } from "@/lib/contacts/sources";
 import { createContact } from "./actions";
 
-const input = "w-full rounded-lg border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-bronze";
+const input = "w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm outline-none focus:border-bronze";
 const label = "mb-1 block text-xs font-medium uppercase tracking-[0.15em] text-muted";
 
 function Submit() {
@@ -34,7 +34,7 @@ export function AddClient() {
       <dialog
         ref={ref}
         onClick={(e) => e.target === ref.current && ref.current?.close()}
-        className="m-auto w-[calc(100%-2rem)] max-w-lg rounded-2xl border border-line bg-cream p-0 text-ink shadow-2xl backdrop:bg-walnut/50 backdrop:backdrop-blur-[2px]"
+        className="m-auto w-[calc(100%-2rem)] max-w-lg rounded-2xl border border-line bg-cream p-0 text-ink shadow-2xl backdrop:bg-black/50 backdrop:backdrop-blur-[2px]"
       >
         <form action={action} className="grid gap-4 p-6 sm:grid-cols-2">
           <div className="flex items-start justify-between gap-4 sm:col-span-2">

@@ -10,6 +10,41 @@
   --muted: #8a7b6c;
   --line: #e8dfd0;
   --card: #fdfbf7;
+  --surface: #ffffff;
+  --subtle: #6b5d4f;
+  --sidebar: #211a16;
+  --sidebar-fg: #f5f0e8;
+  color-scheme: light;
+}
+
+/* Dark theme: the same tokens, warm walnut/charcoal. "walnut" is the foreground colour and "cream" the page colour,
+   so they swap here and every existing text-walnut / bg-cream / bg-walnut button follows without page changes. */
+:root[data-theme="dark"] {
+  --walnut: #efe7da;
+  --cream: #17120f;
+  --ink: #efe7da;
+  --bronze: #b98a5b;
+  --gold: #d9a63f;
+  --muted: #a89a8b;
+  --subtle: #c0b3a4;
+  --line: #3a2f28;
+  --card: #211a16;
+  --surface: #2a211c;
+  --sidebar: #120e0c;
+  color-scheme: dark;
+
+  /* Status colours: deep tints with light text, same hues as the light theme */
+  --color-red-50: #3a1d19;
+  --color-red-200: #6b2f27;
+  --color-red-700: #f0a79a;
+  --color-red-800: #f4b9ad;
+  --color-amber-50: #3a2c14;
+  --color-amber-300: #7a5a1f;
+  --color-amber-700: #e3b45f;
+  --color-amber-900: #efcf8f;
+  --color-stone-100: #2c2622;
+  --color-stone-600: #bcb1a5;
+  --color-violet-200: #5a4a78;
 }
 
 @theme inline {
@@ -20,9 +55,15 @@
   --color-muted: var(--muted);
   --color-line: var(--line);
   --color-card: var(--card);
+  --color-surface: var(--surface);
+  --color-subtle: var(--subtle);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-fg: var(--sidebar-fg);
   --font-sans: var(--font-sans-face);
   --font-serif: var(--font-serif-face);
 }
+
+@custom-variant collapsed (html[data-sidebar="collapsed"] &);
 
 body {
   background: var(--cream);

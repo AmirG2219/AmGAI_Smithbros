@@ -15,7 +15,7 @@ export default function Error({ reset }: { error: Error & { digest?: string }; r
           Try again
         </button>
         <Link href="/" className="rounded-lg border border-line px-5 py-2.5 text-sm hover:border-bronze">
-          Go to Overview
+          Go to Dashboard
         </Link>
       </div>
     </div>

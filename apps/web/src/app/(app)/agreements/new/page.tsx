@@ -118,7 +118,7 @@ export default async function NewAgreement({
               {found.length === 0 ? (
                 <p className="text-sm text-muted">{term ? "No customer matches. Add them below." : "No customers yet. Add the first one below."}</p>
               ) : (
-                <ul className="overflow-hidden rounded-xl border border-line bg-white">
+                <ul className="overflow-hidden rounded-xl border border-line bg-surface">
                   <li className="border-b border-line bg-cream/50 px-3.5 py-1.5 text-[10px] font-medium uppercase tracking-[0.18em] text-muted">{term ? "Matches" : "Recent customers"}</li>
                   {found.map((c) => (
                     <li key={c.id} className="border-b border-line last:border-0">
@@ -130,7 +130,7 @@ export default async function NewAgreement({
                   ))}
                 </ul>
               )}
-              <details className="group rounded-xl border border-dashed border-line p-3.5 open:bg-white" open={!!sp.error && !customer}>
+              <details className="group rounded-xl border border-dashed border-line p-3.5 open:bg-surface" open={!!sp.error && !customer}>
                 <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-medium text-bronze [&::-webkit-details-marker]:hidden">
                   <Plus size={15} /> Add a new customer
                 </summary>
@@ -156,7 +156,7 @@ export default async function NewAgreement({
             ) : (
               <div className="grid gap-3">
                 {projects.length > 0 && (
-                  <ul className="overflow-hidden rounded-xl border border-line bg-white">
+                  <ul className="overflow-hidden rounded-xl border border-line bg-surface">
                     {projects.map((p) => (
                       <li key={p.id} className="border-b border-line last:border-0">
                         <Link href={`/agreements/new?customer=${customer.id}&project=${p.id}${choice ? `&docs=${choice.key}` : ""}`} className="flex flex-wrap items-baseline justify-between gap-x-3 px-3.5 py-2.5 text-sm hover:bg-cream/70">
@@ -167,7 +167,7 @@ export default async function NewAgreement({
                     ))}
                   </ul>
                 )}
-                <details className="rounded-xl border border-dashed border-line p-3.5 open:bg-white" open={projects.length === 0 || !!sp.error}>
+                <details className="rounded-xl border border-dashed border-line p-3.5 open:bg-surface" open={projects.length === 0 || !!sp.error}>
                   <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-medium text-bronze [&::-webkit-details-marker]:hidden">
                     <Plus size={15} /> {projects.length ? "Create a new project" : "Create the customer's first project"}
                   </summary>
@@ -201,7 +201,7 @@ export default async function NewAgreement({
               <p className="eyebrow mb-3">{step(3, "Document")}</p>
               <div className="grid gap-2.5 sm:grid-cols-3">
                 {CHOICES.map(({ key, label, blurb, Icon }) => (
-                  <label key={key} className="relative flex cursor-pointer flex-col gap-1 rounded-xl border border-line bg-white p-3.5 transition-colors has-[:checked]:border-bronze has-[:checked]:bg-bronze/10 hover:border-bronze">
+                  <label key={key} className="relative flex cursor-pointer flex-col gap-1 rounded-xl border border-line bg-surface p-3.5 transition-colors has-[:checked]:border-bronze has-[:checked]:bg-bronze/10 hover:border-bronze">
                     <input type="radio" name="docs" value={key} required defaultChecked={sp.docs === key} className="sr-only" />
                     <Icon size={20} strokeWidth={1.5} className="text-bronze" />
                     <span className="text-sm font-medium">{label}</span>

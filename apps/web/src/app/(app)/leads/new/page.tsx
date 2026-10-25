@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Card } from "../../ui";
 import { NewLeadForm } from "./form";
 
-const input = "w-full rounded-lg border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-bronze";
+const input = "w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm outline-none focus:border-bronze";
 const UUID = /^[0-9a-f-]{36}$/i;
 
 type Customer = { id: string; first_name: string; last_name: string | null; email: string | null; phone: string | null };
@@ -67,7 +67,7 @@ export default async function NewLead({ searchParams }: { searchParams: Promise<
               </form>
               {term && found.length === 0 && <p className="text-sm text-muted">No customer matches. Enter their details below.</p>}
               {found.length > 0 && (
-                <ul className="overflow-hidden rounded-xl border border-line bg-white">
+                <ul className="overflow-hidden rounded-xl border border-line bg-surface">
                   <li className="border-b border-line bg-cream/50 px-3.5 py-1.5 text-[10px] font-medium uppercase tracking-[0.18em] text-muted">{term ? "Matches" : "Recent customers"}</li>
                   {found.map((c) => (
                     <li key={c.id} className="border-b border-line last:border-0">

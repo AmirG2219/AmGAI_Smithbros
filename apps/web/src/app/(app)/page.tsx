@@ -35,7 +35,7 @@ export default async function Overview() {
 
   return (
     <div>
-      <PageHeader eyebrow={greeting(me?.display_name ?? "there")} title="Command Overview" />
+      <PageHeader eyebrow={greeting(me?.display_name ?? "there")} title="Dashboard" />
 
       <div className="mb-8 grid grid-cols-2 gap-3 sm:gap-5 xl:grid-cols-4">
         {tiles.map(({ label, value, Icon, href }) => (

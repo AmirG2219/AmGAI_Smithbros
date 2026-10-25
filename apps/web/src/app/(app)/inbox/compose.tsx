@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { Send, X } from "lucide-react";
 
-const input = "w-full rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none focus:border-bronze";
-const lbl = "mb-1 block text-xs font-medium uppercase tracking-[0.15em] text-[#6b5d4f]";
+const input = "w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-bronze";
+const lbl = "mb-1 block text-xs font-medium uppercase tracking-[0.15em] text-subtle";
 const KEY = "smith-inbox-compose";
 
 type Saved = { to: string; subject: string; body: string };
@@ -46,7 +46,7 @@ export function Compose({ connected, onClose }: { connected: boolean; onClose: (
     <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-line bg-card" aria-label="New message">
       <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
         <h2 className="font-serif text-xl">New message</h2>
-        <button onClick={onClose} className="inline-flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-sm text-[#6b5d4f] hover:border-bronze hover:text-walnut">
+        <button onClick={onClose} className="inline-flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-sm text-subtle hover:border-bronze hover:text-walnut">
           <X size={15} /> Close
         </button>
       </div>
@@ -66,7 +66,7 @@ export function Compose({ connected, onClose }: { connected: boolean; onClose: (
       </div>
       <div className="border-t border-line bg-cream/50 px-4 py-3">
         {!connected && <p className="mb-2 text-xs text-bronze">Gmail isn&apos;t connected yet, so new messages can&apos;t be sent. You can write and save a draft.</p>}
-        {note && <p className="mb-2 text-xs text-[#6b5d4f]" role="status">{note}</p>}
+        {note && <p className="mb-2 text-xs text-subtle" role="status">{note}</p>}
         <div className="flex flex-wrap items-center gap-2">
           <button
             disabled
@@ -76,7 +76,7 @@ export function Compose({ connected, onClose }: { connected: boolean; onClose: (
             <Send size={15} /> Send
           </button>
           <button onClick={save} className="rounded-lg border border-line px-4 py-2 text-sm hover:border-bronze">Save draft</button>
-          <button onClick={discard} className="px-2 py-2 text-sm text-[#6b5d4f] underline hover:text-walnut">Discard</button>
+          <button onClick={discard} className="px-2 py-2 text-sm text-subtle underline hover:text-walnut">Discard</button>
         </div>
       </div>
     </section>

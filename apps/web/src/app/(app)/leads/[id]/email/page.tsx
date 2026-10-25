@@ -10,7 +10,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, PageHeader } from "../../../ui";
 import { draftEmailAction, sendEmailAction } from "./actions";
 
-const input = "w-full rounded-lg border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-bronze";
+const input = "w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm outline-none focus:border-bronze";
 const label = "mb-1 block text-xs font-medium uppercase tracking-[0.15em] text-muted";
 
 const errors: Record<string, string> = {

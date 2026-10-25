@@ -44,7 +44,7 @@ export function QuoteFields() {
           Tax {money(tax)} · <strong>Total {money(cents(s) + tax)}</strong>
         </p>
       )}
-      <label className="mt-4 flex items-start gap-2 rounded-lg border border-line bg-white px-3 py-2.5 text-sm">
+      <label className="mt-4 flex items-start gap-2 rounded-lg border border-line bg-surface px-3 py-2.5 text-sm">
         <input type="checkbox" name="q_confirm" required className="mt-0.5" />
         <span>I confirm this price and scope were agreed with the customer, and record the quote as accepted.</span>
       </label>

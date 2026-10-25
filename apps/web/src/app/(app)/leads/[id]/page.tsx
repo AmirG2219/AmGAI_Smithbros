@@ -157,7 +157,7 @@ export default async function LeadDetail({
           <form action={resolveReview} className="mt-4 flex flex-wrap items-end gap-3">
             <div className="min-w-0 flex-1 sm:max-w-md">
               <label htmlFor="note" className="mb-1 block text-xs font-medium uppercase tracking-[0.15em] text-muted">Note (optional)</label>
-              <input id="note" name="note" maxLength={500} placeholder="e.g. Called the customer; will confirm the size on site" className="w-full rounded-lg border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-bronze" />
+              <input id="note" name="note" maxLength={500} placeholder="e.g. Called the customer; will confirm the size on site" className="w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm outline-none focus:border-bronze" />
             </div>
             <button className="rounded-lg bg-walnut px-5 py-2.5 text-sm font-medium text-cream transition-colors hover:bg-bronze">Mark as reviewed</button>
           </form>

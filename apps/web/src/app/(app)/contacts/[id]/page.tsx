@@ -77,7 +77,7 @@ export default async function ClientPage({
   return (
     <div>
       <Link href="/contacts" className="mb-4 inline-flex items-center gap-1 text-sm text-muted hover:text-walnut">
-        <ArrowLeft size={14} /> Clients
+        <ArrowLeft size={14} /> Contacts
       </Link>
       <PageHeader eyebrow="Client" title={name}>
         <Pill kind="review">{sourceLabel(c.source)}</Pill>
@@ -154,7 +154,7 @@ export default async function ClientPage({
                 maxLength={4000}
                 defaultValue={c.notes ?? ""}
                 placeholder="Private notes, e.g. dog in the house, call before 5pm"
-                className="w-full rounded-lg border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-bronze"
+                className="w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm outline-none focus:border-bronze"
               />
               <button className="w-fit rounded-lg bg-walnut px-4 py-2 text-sm font-medium text-cream hover:bg-bronze">Save notes</button>
             </form>

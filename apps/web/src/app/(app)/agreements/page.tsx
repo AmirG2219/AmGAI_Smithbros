@@ -119,9 +119,9 @@ export default async function Agreements({
             {tab.key !== "all" && <input type="hidden" name="tab" value={tab.key} />}
             <div className="relative min-w-0 flex-1 sm:w-60 sm:flex-none">
               <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-              <input name="q" defaultValue={term} placeholder="Search customer or address" aria-label="Search" className="w-full rounded-lg border border-line bg-white py-2 pl-8 pr-3 text-sm outline-none focus:border-bronze" />
+              <input name="q" defaultValue={term} placeholder="Search customer or address" aria-label="Search" className="w-full rounded-lg border border-line bg-surface py-2 pl-8 pr-3 text-sm outline-none focus:border-bronze" />
             </div>
-            <select name="type" defaultValue={type} aria-label="Document type" className="rounded-lg border border-line bg-white px-2.5 py-2 text-sm outline-none focus:border-bronze">
+            <select name="type" defaultValue={type} aria-label="Document type" className="rounded-lg border border-line bg-surface px-2.5 py-2 text-sm outline-none focus:border-bronze">
               <option value="">All types</option>
               <option value="work_contract">Contracts</option>
               <option value="policy_liability">Policies</option>

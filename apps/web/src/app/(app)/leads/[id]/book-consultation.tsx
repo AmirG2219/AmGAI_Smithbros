@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { CalendarPlus, X } from "lucide-react";
 
-const input = "w-full rounded-lg border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-bronze";
+const input = "w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm outline-none focus:border-bronze";
 const label = "mb-1 block text-xs font-medium uppercase tracking-[0.15em] text-muted";
 
 function Submit() {
@@ -46,7 +46,7 @@ export function BookConsultation({ action, clientEmail }: { action: (formData: F
       <dialog
         ref={ref}
         onClick={(e) => e.target === ref.current && ref.current?.close()}
-        className="m-auto w-[calc(100%-2rem)] max-w-md rounded-2xl border border-line bg-cream p-0 text-ink shadow-2xl backdrop:bg-walnut/50 backdrop:backdrop-blur-[2px]"
+        className="m-auto w-[calc(100%-2rem)] max-w-md rounded-2xl border border-line bg-cream p-0 text-ink shadow-2xl backdrop:bg-black/50 backdrop:backdrop-blur-[2px]"
       >
         <form action={action} className="grid gap-4 p-6">
           <div className="flex items-start justify-between gap-4">

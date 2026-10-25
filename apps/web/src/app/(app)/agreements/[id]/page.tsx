@@ -41,7 +41,7 @@ const NOTICES: Record<string, string> = {
 };
 
 const primaryBtn = "inline-flex items-center justify-center gap-2 rounded-lg bg-walnut px-4 py-2.5 text-sm font-medium text-cream transition-colors hover:bg-bronze disabled:opacity-50";
-const outlineBtn = "inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-white px-4 py-2.5 text-sm hover:border-bronze";
+const outlineBtn = "inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-surface px-4 py-2.5 text-sm hover:border-bronze";
 
 // The action this document needs next: first on phones, rightmost beside the other buttons on wider screens.
 const Primary = ({ children }: { children: React.ReactNode }) => <div className="order-first sm:order-none">{children}</div>;
@@ -222,7 +222,7 @@ export default async function AgreementPage({
       {notice && NOTICES[notice] && <p className="mb-3 rounded-xl border border-gold/40 bg-gold/10 px-4 py-2.5 text-sm">{NOTICES[notice]}</p>}
       {error && <p className="mb-3 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-800">{error}</p>}
       {["generated", "sent"].includes(status) && !email && (
-        <p className="mb-3 rounded-xl border border-line bg-white px-4 py-2.5 text-sm text-muted">The customer has no email address on file, so this can&apos;t be sent from here.</p>
+        <p className="mb-3 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm text-muted">The customer has no email address on file, so this can&apos;t be sent from here.</p>
       )}
       {sendState.kind === "uncertain" && (
         <p className="mb-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-900">

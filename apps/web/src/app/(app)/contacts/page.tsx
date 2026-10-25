@@ -38,7 +38,7 @@ export default async function Clients({
 
   return (
     <div>
-      <PageHeader eyebrow="Reference" title="Clients">
+      <PageHeader eyebrow="Reference" title="Contacts">
         <AddClient key={notice ?? "none"} />
       </PageHeader>
       {notice === "added" && (
@@ -51,9 +51,9 @@ export default async function Clients({
           name="q"
           defaultValue={term}
           placeholder="Search name, email or phone"
-          className="min-w-0 flex-1 rounded-lg border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-bronze sm:max-w-xs"
+          className="min-w-0 flex-1 rounded-lg border border-line bg-surface px-3 py-2.5 text-sm outline-none focus:border-bronze sm:max-w-xs"
         />
-        <select name="source" defaultValue={sourceFilter} className="rounded-lg border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-bronze">
+        <select name="source" defaultValue={sourceFilter} className="rounded-lg border border-line bg-surface px-3 py-2.5 text-sm outline-none focus:border-bronze">
           <option value="">All sources</option>
           {Object.keys(SOURCE_LABELS).map((s) => (
             <option key={s} value={s}>
