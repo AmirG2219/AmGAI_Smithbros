@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { HelpButton, type HelpConfig } from "./help";
-import { BookUser, FileStack, LayoutGrid, Mail, MoreHorizontal, Send, Users } from "lucide-react";
+import { BookUser, FileStack, LayoutGrid, Mail, MoreHorizontal, Users } from "lucide-react";
 
 type Item = {
   href: string;
@@ -20,7 +20,6 @@ const main: Item[] = [
   { href: "/leads", label: "Leads", Icon: Users },
   { href: "/inbox", label: "Inbox", Icon: Mail },
   { href: "/agreements", label: "Agreements", Icon: FileStack, also: ["/documents", "/contracts"] },
-  { href: "/campaigns", label: "Marketing Emails", Icon: Send },
 ];
 // Reference data: used often, but not the daily flow, so it sits at the bottom.
 const bottom: Item[] = [{ href: "/contacts", label: "Clients", Icon: BookUser }];
