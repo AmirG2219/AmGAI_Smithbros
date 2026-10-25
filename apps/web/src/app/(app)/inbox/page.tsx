@@ -2,21 +2,22 @@ import { replyAiEnabled } from "@/lib/assistant/draft";
 import { gmailSendConfigured } from "@/lib/assistant/send";
 import { findWaitingOnCustomers } from "@/lib/assistant/waiting";
 import { createClient } from "@/lib/supabase/server";
-import { PageHeader } from "../ui";
 import { PAGE_SIZE, pageOf, rangeOf } from "../pager";
 import { InboxView, type TabT } from "./inbox-view";
 import type { EmailT } from "./types";
 
-// Three places, each answering one question: what do I owe a reply to, who owes me one, and what is finished.
+// Places to look: everything, what I owe a reply to, who owes me one, what is finished, and what we sent.
 const TABS = [
+  { key: "all", label: "All mail" },
   { key: "reply", label: "Needs reply" },
   { key: "waiting", label: "Waiting on customer" },
   { key: "done", label: "Done" },
+  { key: "sent", label: "Sent" },
 ] as const;
 
 // Everything the side panel shows is fetched here with the list, so opening an email later needs no waiting.
 const COLUMNS =
-  "id, direction, status, from_address, from_name, subject, body_text, received_at, provider_thread_id, analysis_status, category, priority, needs_reply, summary, suggested_action, read_at, contact_id, project_id, contacts(id, first_name, last_name), inbox_attachments(id, filename, content_type, size_bytes), email_drafts(id, status, subject, body_text, checks, source, error_summary, sent_at)";
+  "id, direction, status, from_address, from_name, to_addresses, subject, body_text, received_at, provider_thread_id, analysis_status, category, priority, needs_reply, summary, suggested_action, read_at, contact_id, project_id, contacts(id, first_name, last_name), inbox_attachments(id, filename, content_type, size_bytes), email_drafts(id, status, subject, body_text, checks, source, error_summary, sent_at)";
 
 type RawRow = Omit<EmailT, "contacts"> & { contacts: EmailT["contacts"] | EmailT["contacts"][] };
 
@@ -45,15 +46,15 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
 
   let list = null;
   if (term || f !== "waiting") {
-    let q = supabase.from("inbox_emails").select(COLUMNS, { count: "exact" }).eq("direction", "inbound");
+    let q = supabase.from("inbox_emails").select(COLUMNS, { count: "exact" });
+    if (f === "sent" && !term) q = q.eq("direction", "outbound");
+    else if (f !== "all" && !term) q = q.eq("direction", "inbound");
     if (term) {
       // A search looks through all mail, whatever tab it is in.
       q = q.or(`from_name.ilike.%${term}%,from_address.ilike.%${term}%,subject.ilike.%${term}%,body_text.ilike.%${term}%,summary.ilike.%${term}%`);
     } else {
-      q =
-        f === "reply"
-          ? q.eq("status", "open").or("needs_reply.is.null,needs_reply.eq.true")
-          : q.or("status.in.(handled,archived),and(status.eq.open,needs_reply.eq.false)");
+      if (f === "reply") q = q.eq("status", "open").or("needs_reply.is.null,needs_reply.eq.true");
+      else if (f === "done") q = q.or("status.in.(handled,archived),and(status.eq.open,needs_reply.eq.false)");
     }
     const [from, to] = rangeOf(page);
     list = q.order("received_at", { ascending: false }).range(from, to);
@@ -71,7 +72,7 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
     contacts: Array.isArray(r.contacts) ? (r.contacts[0] ?? null) : r.contacts,
   })) as EmailT[];
   const waiting = waitingAll.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  const count: Record<string, number> = { reply: replyBadge, waiting: waitingAll.length, done: 0 };
+  const count: Record<string, number> = { reply: replyBadge, waiting: waitingAll.length, all: 0, done: 0, sent: 0 };
 
   const href = (key: string, p = 1, withQuery = false) => {
     const qs = new URLSearchParams({
@@ -88,7 +89,6 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
 
   return (
     <div>
-      <PageHeader eyebrow="Replies drafted for you" title="Inbox" />
       <InboxView
         key={`${f}:${page}:${term}`}
         rows={rows}

@@ -3,10 +3,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireAdmin } from "@/lib/auth";
 import { createOrRefreshDraft } from "@/lib/assistant/drafts";
-import { sendApprovedDraft } from "@/lib/assistant/send";
+import { gmailSendConfigured, sendApprovedDraft } from "@/lib/assistant/send";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { OPEN_DRAFT, type ActionResult, type DraftT, type PanelData } from "./types";
+import { OPEN_DRAFT, type ActionResult, type DraftT, type LinkInfo, type PanelData } from "./types";
 
 // Every action here returns a result instead of reloading the page, so the inbox can update itself on the spot.
 
@@ -87,6 +87,8 @@ export async function saveDraft(draftId: string, subject: string, body: string):
 // Approval is the only way a reply leaves. Edits are saved first, so what is sent is what was approved.
 export async function sendDraft(draftId: string, subject: string, body: string): Promise<ActionResult> {
   const me = await requireAdmin();
+  // Nothing is approved or "queued" while sending is unavailable; the draft just stays a draft.
+  if (!gmailSendConfigured()) return { ok: false, notice: "not-connected" };
   const db = createAdminClient();
   const s = text(subject, 300);
   const b = text(body, 20000);
@@ -145,4 +147,57 @@ export async function mailPulse(): Promise<{ latest: string | null; unread: numb
     supabase.from("inbox_emails").select("id", { count: "exact", head: true }).eq("direction", "inbound").is("read_at", null),
   ]);
   return { latest: newest.data?.[0]?.received_at ?? null, unread: unread.count ?? 0 };
+}
+
+// The customer and project an email belongs to, for the card beside the conversation.
+export async function getLinks(emailId: string): Promise<LinkInfo> {
+  await requireAdmin();
+  const none: LinkInfo = { contact: null, project: null };
+  if (!/^[0-9a-f-]{36}$/i.test(emailId)) return none;
+  const supabase = await createClient();
+  const { data: e } = await supabase.from("inbox_emails").select("contact_id, project_id").eq("id", emailId).maybeSingle();
+  if (!e?.contact_id) return none;
+  const [c, p] = await Promise.all([
+    supabase.from("contacts").select("id, first_name, last_name, email, phone").eq("id", e.contact_id).maybeSingle(),
+    e.project_id
+      ? supabase.from("projects").select("id, project_type, site_address_line1, site_city, stage").eq("id", e.project_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+  return { contact: (c.data as LinkInfo["contact"]) ?? null, project: (p.data as LinkInfo["project"]) ?? null };
+}
+
+// Staff pressed "Create contact" for an unknown sender. Nothing here runs unless a person asks for it.
+// If the address already belongs to a client, the email is linked to that client instead of making a duplicate.
+export async function createContactFromEmail(emailId: string, firstName: string, lastName: string): Promise<{ ok: boolean; error?: string; links?: LinkInfo }> {
+  await requireAdmin();
+  if (!/^[0-9a-f-]{36}$/i.test(emailId)) return { ok: false, error: "That didn't work. Please try again." };
+  const first = text(firstName, 100);
+  if (!first) return { ok: false, error: "Enter a first name." };
+  const db = createAdminClient();
+  const { data: e } = await db.from("inbox_emails").select("from_address, direction, contact_id").eq("id", emailId).maybeSingle();
+  if (!e || e.direction !== "inbound") return { ok: false, error: "That didn't work. Please try again." };
+  if (e.contact_id) return { ok: true, links: await getLinks(emailId) };
+
+  const address = String(e.from_address).trim().toLowerCase();
+  const { data: existing } = await db.from("contacts").select("id, projects(id, created_at)").eq("email_normalized", address).maybeSingle();
+  let contactId = existing?.id as string | undefined;
+  let projectId: string | null = null;
+  if (existing) {
+    const ps = ((existing.projects ?? []) as { id: string; created_at: string }[]).sort((a, b) => b.created_at.localeCompare(a.created_at));
+    projectId = ps[0]?.id ?? null;
+  } else {
+    const { data: created, error } = await db
+      .from("contacts")
+      .insert({ first_name: first, last_name: text(lastName, 100) || null, email: address, source: "manual" })
+      .select("id")
+      .single();
+    if (error || !created) {
+      console.error("[inbox] create contact failed:", error);
+      return { ok: false, error: "Could not add the contact. Please try again." };
+    }
+    contactId = created.id as string;
+  }
+  // Link this email, and any other unlinked mail from the same address.
+  await db.from("inbox_emails").update({ contact_id: contactId, project_id: projectId }).eq("from_address", address).eq("direction", "inbound").is("contact_id", null);
+  return { ok: true, links: await getLinks(emailId) };
 }

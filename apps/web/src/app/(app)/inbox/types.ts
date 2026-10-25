@@ -28,6 +28,7 @@ export type EmailT = {
   status: string;
   from_address: string;
   from_name: string | null;
+  to_addresses?: string[] | null;
   subject: string;
   body_text: string;
   received_at: string;
@@ -55,3 +56,8 @@ export type PanelData = { email: Omit<EmailT, "email_drafts">; thread: MsgT[]; d
 export type ActionResult = { ok: boolean; notice?: string; draft?: DraftT | null };
 
 export const OPEN_DRAFT = ["draft", "approved", "failed"];
+
+export type LinkInfo = {
+  contact: { id: string; first_name: string; last_name: string | null; email: string | null; phone: string | null } | null;
+  project: { id: string; project_type: string | null; site_address_line1: string | null; site_city: string | null; stage: string | null } | null;
+};
