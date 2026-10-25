@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { findUnbookedLeads } from "@/lib/assistant/waiting";
 import { LEAD_COLUMNS, LeadsTable, type LeadRow } from "../leads-table";
@@ -55,7 +56,14 @@ export default async function Leads({
 
   return (
     <div>
-      <PageHeader eyebrow="Sales" title="Leads" />
+      <PageHeader eyebrow="Sales" title="Leads">
+        <Link
+          href="/leads/new"
+          className="inline-flex items-center gap-2 rounded-lg bg-walnut px-4 py-2.5 text-sm font-medium text-cream transition-colors hover:bg-bronze"
+        >
+          <Plus size={16} /> New Lead
+        </Link>
+      </PageHeader>
       <div className="mb-4 flex flex-wrap gap-2">
         {filters.map((x) => (
           <Link

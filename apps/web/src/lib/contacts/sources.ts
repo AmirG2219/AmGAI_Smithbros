@@ -5,6 +5,7 @@ export const SOURCE_LABELS: Record<string, string> = {
   phone: "Phone call",
   referral: "Referral",
   walk_in: "Walk-in",
+  email: "Email",
   spreadsheet: "Spreadsheet import",
   other: "Other",
 };

@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, CalendarCheck, FileText, Mail, Phone } from "lucide-react";
+import { sourceLabel } from "@/lib/contacts/sources";
 import { label } from "@/lib/leads/inquiry";
 import { createClient } from "@/lib/supabase/server";
 import { Card, PageHeader, Pill } from "../../ui";
-import { cancelConsultation, scheduleConsultation } from "./actions";
+import { missingDetails } from "@/lib/leads/manual";
+import { cancelConsultation, markReviewed, scheduleConsultation } from "./actions";
 import { BookConsultation } from "./book-consultation";
 
 const TZ = "America/Edmonton";
@@ -27,6 +29,9 @@ const notices: Record<string, string> = {
   "booked-email-problem":
     "Consultation booked, but the confirmation email was not sent. See the timeline.",
   cancelled: "Consultation cancelled.",
+  "lead-created": "Lead added. Nothing was priced, scored or emailed.",
+  reviewed: "Marked as reviewed. Nothing about the customer or project was changed.",
+  "already-reviewed": "This lead has already been reviewed.",
   "email-sent": "Email sent. It is saved on this lead's timeline.",
   "already-booked": "This lead already has a scheduled consultation. Cancel it first.",
   invalid: "That didn't work. Check the date and time and try again.",
@@ -82,6 +87,8 @@ export default async function LeadDetail({
   const upcoming = (p.appointments ?? []).find((a: { status: string }) => a.status === "scheduled");
   const answers = (p.additional_answers ?? {}) as {
     notes?: string;
+    lead_source?: string;
+    origin?: string;
     rooms?: string[];
     species?: string[];
     pattern?: string;
@@ -91,6 +98,15 @@ export default async function LeadDetail({
   const notes = answers.notes;
 
   const schedule = scheduleConsultation.bind(null, id);
+  const resolveReview = markReviewed.bind(null, id);
+  // Missing details are only listed for staff-entered leads; the website form never asks for a street address.
+  const missing =
+    answers.origin === "manual_lead"
+      ? missingDetails(
+          { project_type: p.project_type, square_footage: p.square_footage ? Number(p.square_footage) : null, timeline: p.timeline_preference, site_address_line1: p.site_address_line1 },
+          !!(c?.email || c?.phone),
+        )
+      : [];
 
   return (
     <div>
@@ -109,6 +125,29 @@ export default async function LeadDetail({
 
       {notice && notices[notice] && (
         <p className="mb-5 rounded-xl border border-gold/40 bg-gold/10 px-4 py-3 text-sm">{notices[notice]}</p>
+      )}
+
+      {p.review_status === "needs_review" && (
+        <Card className="mb-5 border-gold/50 bg-gold/10 p-5">
+          <p className="eyebrow mb-2">Needs review</p>
+          {p.review_reason && <p className="text-sm">{p.review_reason}</p>}
+          {missing.length > 0 && (
+            <div className="mt-3 text-sm">
+              <p className="font-medium">Still missing</p>
+              <ul className="mt-1 list-disc pl-5 text-muted">
+                {missing.map((m) => <li key={m}>{m}</li>)}
+              </ul>
+            </div>
+          )}
+          <form action={resolveReview} className="mt-4 flex flex-wrap items-end gap-3">
+            <div className="min-w-0 flex-1 sm:max-w-md">
+              <label htmlFor="note" className="mb-1 block text-xs font-medium uppercase tracking-[0.15em] text-muted">Note (optional)</label>
+              <input id="note" name="note" maxLength={500} placeholder="e.g. Called the customer; will confirm the size on site" className="w-full rounded-lg border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-bronze" />
+            </div>
+            <button className="rounded-lg bg-walnut px-5 py-2.5 text-sm font-medium text-cream transition-colors hover:bg-bronze">Mark as reviewed</button>
+          </form>
+          <p className="mt-2 text-xs text-muted">This records that you have looked at the lead. It does not fill in missing details or change the customer.</p>
+        </Card>
       )}
 
       <div className="mb-5 flex flex-wrap gap-2">
@@ -163,6 +202,7 @@ export default async function LeadDetail({
             <p className="eyebrow mb-2">Contact</p>
             <Row k="Email" v={<span className="normal-case">{c?.email}</span>} />
             <Row k="Phone" v={c?.phone} />
+            <Row k="Street address" v={p.site_address_line1} />
             <Row k="City" v={p.site_city} />
             <Row k="Postal code" v={p.site_postal_code} />
           </Card>
@@ -177,9 +217,10 @@ export default async function LeadDetail({
             <Row k="Pattern" v={answers.pattern ? label(answers.pattern) : null} />
             <Row k="Finish" v={answers.finish ? label(answers.finish) : null} />
             <Row k="Best way to reach" v={answers.preferred_contact ? label(answers.preferred_contact) : null} />
+            <Row k="Source" v={sourceLabel(answers.lead_source ?? (answers.origin === "agreement_builder" ? "manual" : "website_intake"))} />
             <Row k="Stage" v={p.stage.replaceAll("_", " ")} />
             {notes && <p className="mt-3 text-sm text-muted">&ldquo;{notes}&rdquo;</p>}
-            {p.review_reason && <p className="mt-3 text-sm text-bronze">Review: {p.review_reason}</p>}
+            {p.review_status === "reviewed" && <p className="mt-3 text-sm text-muted">Review resolved by staff (see the timeline).</p>}
           </Card>
 
           <Card className="p-5">

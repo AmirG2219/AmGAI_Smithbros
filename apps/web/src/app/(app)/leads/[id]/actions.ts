@@ -169,3 +169,42 @@ export async function cancelConsultation(projectId: string, appointmentId: strin
   revalidatePath(`/leads/${projectId}`);
   redirect(`/leads/${projectId}?notice=cancelled`);
 }
+
+// Staff confirm they have looked at a flagged lead. This only changes the review status: it never fills in missing
+// details or edits the customer. The note and what was still missing are kept on the timeline.
+export async function markReviewed(projectId: string, formData: FormData) {
+  const me = await requireAdmin();
+  const db = createAdminClient();
+  const note = String(formData.get("note") ?? "").trim().slice(0, 500);
+
+  const { data: project } = await db
+    .from("projects")
+    .select("contact_id, review_status, review_reason")
+    .eq("id", projectId)
+    .maybeSingle();
+  if (!project) redirect("/leads");
+  if (project.review_status !== "needs_review") redirect(`/leads/${projectId}?notice=already-reviewed`);
+
+  // Only flips a lead that is still waiting, so a double click records one review.
+  const up = await db
+    .from("projects")
+    .update({ review_status: "reviewed" })
+    .eq("id", projectId)
+    .eq("review_status", "needs_review")
+    .select("id");
+  if (up.error) throw up.error;
+
+  if (up.data && up.data.length > 0)
+    await db.from("events").insert({
+      contact_id: project.contact_id,
+      project_id: projectId,
+      event_type: "project.review_resolved",
+      summary: note ? `Review resolved by ${me.display_name}: ${note.slice(0, 200)}` : `Review resolved by ${me.display_name}`,
+      details: { reason: project.review_reason, note: note || null },
+      actor_user_id: me.id,
+      source: "dashboard",
+    });
+
+  revalidatePath(`/leads/${projectId}`);
+  redirect(`/leads/${projectId}?notice=reviewed`);
+}
