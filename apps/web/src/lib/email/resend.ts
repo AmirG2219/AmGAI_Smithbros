@@ -5,7 +5,9 @@ export const emailEnabled = () =>
 
 export type SendResult =
   | { ok: true; providerId: string }
-  | { ok: false; code: string; summary: string };
+  // ambiguous: no definite answer from the provider (timeout, network error, 5xx, or a success without an id), so the
+  // email may or may not have gone out. A definite refusal (4xx) is not ambiguous.
+  | { ok: false; code: string; summary: string; ambiguous: boolean };
 
 // Minimal Resend client (one HTTP call; no SDK needed).
 export async function sendEmail(msg: {
@@ -46,6 +48,7 @@ export async function sendEmail(msg: {
         ok: false,
         code: `http_${res.status}`,
         summary: (json.message ?? "Provider rejected the request").slice(0, 300),
+        ambiguous: !(res.status >= 400 && res.status < 500 && res.status !== 408),
       };
     return { ok: true, providerId: json.id };
   } catch (e) {
@@ -53,6 +56,7 @@ export async function sendEmail(msg: {
       ok: false,
       code: "network",
       summary: (e instanceof Error ? e.message : "Network error").slice(0, 300),
+      ambiguous: true,
     };
   }
 }

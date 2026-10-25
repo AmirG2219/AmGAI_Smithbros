@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createDrafts, findOrCreateCustomer, createManualProject, recordAcceptedQuote, UserError } from "./build";
-import { sendAgreementsEmail } from "./send";
+import { loadSendAttempts, sendAgreementsEmail, summarizeSends } from "./send";
+import { sentEmailStatus } from "../email/status";
 import { verifySigned } from "./review";
 import { advanceStage } from "./project-stage";
 import { parseQuoteEntry } from "./vars";
@@ -15,6 +16,7 @@ type Tables = Record<string, Row[]>;
 // In-memory stand-in for Supabase: only the calls these modules make, plus the database rules that matter here
 // (a work contract needs an accepted quote of its project; "sent" needs an attached email; "won" needs a verified contract).
 // `failUpdate` makes updates of one table fail, to test failure handling. Nothing touches a real database or network.
+let clock = 0;
 function fakeDb(seed: Tables, files: Record<string, Buffer> = {}) {
   const t: Tables = { projects: [], events: [], agreements: [], agreement_documents: [], final_quotes: [], contacts: [], agreement_template_versions: [], message_attachments: [], settings: [], conversations: [], messages: [], message_deliveries: [], ...seed };
   const failUpdate = new Set<string>();
@@ -25,7 +27,7 @@ function fakeDb(seed: Tables, files: Record<string, Buffer> = {}) {
     const filters: ((r: Row) => boolean)[] = [];
     const b: any = {
       select: () => b,
-      eq: (k: string, v: unknown) => (k.includes(".") || filters.push((r) => r[k] === v), b),
+      eq: (k: string, v: unknown) => (k.includes(".") || filters.push((r) => (k.includes("->>") ? r[k.split("->>")[0]]?.[k.split("->>")[1]] === v : r[k] === v)), b),
       is: (k: string, v: unknown) => (filters.push((r) => (r[k] ?? null) === v), b),
       in: (k: string, v: unknown[]) => (filters.push((r) => v.includes(r[k])), b),
       ilike: (k: string, v: string) => (filters.push((r) => String(r[k] ?? "").includes(v.replaceAll("%", ""))), b),
@@ -45,7 +47,9 @@ function fakeDb(seed: Tables, files: Record<string, Buffer> = {}) {
             const q = t.final_quotes.find((x) => x.id === r.final_quote_id && x.project_id === r.project_id);
             if (r.document_type === "work_contract" && q?.status !== "accepted") return { error: { message: "agreements: a work contract requires an accepted final quote of the same project" } };
           }
-        const made = ins.map((r) => ({ id: `${table}-${t[table].length + 1}`, ...r }));
+        if (table === "message_deliveries" && ins.some((r) => t.message_deliveries.some((x) => x.idempotency_key === r.idempotency_key)))
+          return { error: { message: "duplicate key value violates unique constraint", code: "23505" } };
+        const made = ins.map((r) => ({ id: `${table}-${t[table].length + 1}`, created_at: new Date(Date.UTC(2026, 9, 1) + (clock += 1000)).toISOString(), ...r }));
         t[table].push(...made);
         return { data: made };
       }
@@ -70,6 +74,7 @@ function fakeDb(seed: Tables, files: Record<string, Buffer> = {}) {
           const v = t.agreement_template_versions.find((x) => x.id === a.template_version_id);
           return { ...a, agreement_documents: t.agreement_documents.filter((d) => d.agreement_id === a.id), agreement_template_versions: v ? { agreement_templates: v.agreement_templates } : null };
         });
+      if (table === "message_attachments") hit = hit.map((r) => ({ ...r, messages: { message_deliveries: t.message_deliveries.filter((d) => d.message_id === r.message_id) } }));
       if (table === "projects") hit = hit.map((p) => ({ ...p, contacts: t.contacts.find((c) => c.id === p.contact_id) ?? null }));
       return { data: hit };
     }
@@ -100,14 +105,16 @@ const stage = (t: Tables) => t.projects.find((p) => p.id === "p1")!.stage;
 const realFetch = globalThis.fetch;
 const saved = { ...process.env };
 let fetchCalls = 0;
-let provider: "ok" | "fail" = "ok";
+let provider: "ok" | "reject" | "error500" | "network" = "ok";
 beforeEach(() => {
   fetchCalls = 0;
   provider = "ok";
   Object.assign(process.env, { EMAIL_SENDING_ENABLED: "true", INBOX_ADDRESS: "shared@example.test", RESEND_API_KEY: "test-key", EMAIL_FROM: "Smith Bros <noreply@example.test>" });
   globalThis.fetch = (async () => {
     fetchCalls++;
-    return provider === "ok" ? new Response(JSON.stringify({ id: "prov-1" }), { status: 200 }) : new Response(JSON.stringify({ message: "nope" }), { status: 500 });
+    if (provider === "network") throw new Error("socket hang up");
+    if (provider === "ok") return new Response(JSON.stringify({ id: "prov-1" }), { status: 200 });
+    return new Response(JSON.stringify({ message: "nope" }), { status: provider === "reject" ? 422 : 500 });
   }) as typeof fetch;
 });
 afterEach(() => {
@@ -232,8 +239,9 @@ test("a policy sent alone does not move the project", async () => {
 });
 
 test("provider failure, demo-mode skip, blocked template and invalid input leave the agreement generated and the stage untouched", async () => {
-  const cases: [string, (tb: Tables) => void, "failed" | "skipped" | "blocked" | "invalid", string?][] = [
-    ["provider fails", () => (provider = "fail"), "failed"],
+  const cases: [string, (tb: Tables) => void, "failed" | "skipped" | "blocked" | "invalid" | "uncertain", string?][] = [
+    ["provider refuses it", () => (provider = "reject"), "failed"],
+    ["provider gives no definite answer", () => (provider = "error500"), "uncertain"],
     ["demo mode skips", (tb) => (tb.settings[0].value = { enabled: true, recipient_allowlist: [] }), "skipped"],
     ["placeholder template", (tb) => (tb.agreement_template_versions[0].agreement_templates.name = "Placeholder contract"), "blocked"],
     ["bad recipient", () => {}, "invalid", "not-an-email"],
@@ -304,4 +312,228 @@ test("full path from a website lead: one stage entry per step, Won only after th
   await verifySigned(db, "u1", id, "checked");
   assert.equal(stage(t), "won");
   assert.deepEqual(stageEvents(t).map((e) => e.details.to), ["customer_accepted", "agreement_sent", "won"]);
+});
+
+// ---- Send outcomes: what staff are told, what is recorded, and what survives a refresh ----
+
+const sendFixture = (type = "work_contract") => fakeDb({ ...base("customer_accepted", [accepted]), ...generated(type, "a1") }, files);
+const state = async (f: ReturnType<typeof sendFixture>) => summarizeSends(await loadSendAttempts(f.db, ["d-a1"]), f.t.agreements[0].status);
+const quiet = async <T,>(fn: () => Promise<T>) => {
+  const e = console.error;
+  console.error = () => {};
+  try {
+    return await fn();
+  } finally {
+    console.error = e;
+  }
+};
+
+test("accepted by the provider: sent, delivery recorded as submitted (never 'delivered'), and the status survives a refresh", async () => {
+  const f = sendFixture();
+  assert.equal((await sendAgreementsEmail(f.db, "u1", ["a1"], mail, false, { attemptKey: "k1" })).outcome, "sent");
+  assert.equal(f.t.message_deliveries[0].status, "submitted");
+  assert.ok(f.t.message_deliveries[0].accepted_at && f.t.message_deliveries[0].provider_message_id);
+  assert.equal(f.t.agreements[0].status, "sent");
+  assert.equal(stage(f.t), "agreement_sent");
+  assert.match(f.t.events.find((e) => e.event_type === "agreement.sent")!.summary, /accepted by the email provider; delivery is not confirmed/);
+  const s = await state(f); // a fresh read of the records, as the page does after a refresh
+  assert.deepEqual(s, { kind: "accepted", at: f.t.message_deliveries[0].accepted_at, delivered: false });
+});
+
+test("only a delivery record that says delivered is shown as delivered", async () => {
+  const f = sendFixture();
+  await sendAgreementsEmail(f.db, "u1", ["a1"], mail, false, { attemptKey: "k1" });
+  f.t.message_deliveries[0].status = "delivered";
+  assert.equal((await state(f) as { delivered: boolean }).delivered, true);
+});
+
+test("provider refusal: reported as failed, nothing marked sent, refusal recorded, and a retry is allowed and works", async () => {
+  const f = sendFixture();
+  provider = "reject";
+  assert.equal((await sendAgreementsEmail(f.db, "u1", ["a1"], mail, false, { attemptKey: "k1" })).outcome, "failed");
+  assert.equal(f.t.agreements[0].status, "generated");
+  assert.equal(f.t.message_deliveries[0].status, "failed");
+  assert.equal(stage(f.t), "customer_accepted");
+  assert.ok(f.t.events.some((e) => e.event_type === "agreement.send_failed"));
+  assert.equal((await state(f)).kind, "rejected");
+  provider = "ok";
+  // The same form retried after a refusal is the next attempt of that request, not a duplicate.
+  assert.equal((await sendAgreementsEmail(f.db, "u1", ["a1"], mail, false, { attemptKey: "k1" })).outcome, "sent");
+  assert.equal(fetchCalls, 2);
+  assert.deepEqual(f.t.message_deliveries.map((d) => d.idempotency_key.split(":").pop()), ["1", "2"]);
+});
+
+test("accepted but the agreement status cannot be saved: reported as unrecorded (not failed), shown after refresh, and Send then only records it", async () => {
+  const f = sendFixture();
+  f.failUpdate.add("agreements");
+  const r = await quiet(() => sendAgreementsEmail(f.db, "u1", ["a1"], mail, false, { attemptKey: "k1" }));
+  assert.equal(r.outcome, "unrecorded");
+  assert.equal(fetchCalls, 1);
+  assert.equal(f.t.agreements[0].status, "generated");
+  assert.ok(f.t.events.some((e) => e.event_type === "agreement.send_unrecorded"));
+  assert.equal((await state(f)).kind, "unrecorded");
+
+  // The database recovers. Staff click Send again (a new opening of the form): the contract is NOT emailed again.
+  f.failUpdate.clear();
+  const again = await sendAgreementsEmail(f.db, "u1", ["a1"], mail, false, { attemptKey: "k2" });
+  assert.equal(again.outcome, "recovered");
+  assert.equal(fetchCalls, 1, "no second email");
+  assert.equal(f.t.agreements[0].status, "sent");
+  assert.equal(stage(f.t), "agreement_sent");
+  assert.equal(f.t.events.filter((e) => e.event_type === "agreement.send_recovered").length, 1);
+  assert.equal((await state(f)).kind, "accepted");
+  // And once recorded, repeating that request is a duplicate.
+  assert.equal((await sendAgreementsEmail(f.db, "u1", ["a1"], mail, false, { attemptKey: "k2" })).outcome, "duplicate");
+  assert.equal(fetchCalls, 1);
+});
+
+test("accepted but the delivery record cannot be updated: reported as unrecorded and further sending is paused for staff", async () => {
+  const f = sendFixture();
+  f.failUpdate.add("message_deliveries");
+  assert.equal((await quiet(() => sendAgreementsEmail(f.db, "u1", ["a1"], mail, false, { attemptKey: "k1" }))).outcome, "unrecorded");
+  assert.equal(fetchCalls, 1);
+  assert.equal(f.t.agreements[0].status, "sent", "what could be saved was saved");
+  f.failUpdate.clear();
+  assert.equal((await state(f)).kind, "uncertain");
+  assert.equal((await sendAgreementsEmail(f.db, "u1", ["a1"], mail, true, { attemptKey: "k2" })).outcome, "uncertain");
+  assert.equal(fetchCalls, 1, "no blind resend");
+});
+
+test("no definite answer from the provider (5xx or network error): uncertain, recorded as such, and resending is blocked until staff confirm", async () => {
+  for (const mode of ["error500", "network"] as const) {
+    fetchCalls = 0;
+    const f = sendFixture();
+    provider = mode;
+    assert.equal((await sendAgreementsEmail(f.db, "u1", ["a1"], mail, false, { attemptKey: "k1" })).outcome, "uncertain", mode);
+    assert.equal(f.t.agreements[0].status, "generated");
+    assert.equal(f.t.message_deliveries[0].status, "queued", "never recorded as failed or delivered");
+    assert.ok(f.t.events.some((e) => e.event_type === "agreement.send_uncertain"));
+    assert.equal(stage(f.t), "customer_accepted");
+    assert.equal((await state(f)).kind, "uncertain");
+
+    provider = "ok";
+    assert.equal((await sendAgreementsEmail(f.db, "u1", ["a1"], mail, false, { attemptKey: "k2" })).outcome, "uncertain", "blind retry refused");
+    assert.equal((await sendAgreementsEmail(f.db, "u1", ["a1"], mail, false, { attemptKey: "k1" })).outcome, "uncertain", "even the same request");
+    assert.equal(fetchCalls, 1);
+
+    // Staff checked and confirmed it was not sent: the earlier attempt is closed as failed by staff decision, and a new one goes out.
+    assert.equal((await sendAgreementsEmail(f.db, "u1", ["a1"], mail, false, { attemptKey: "k3", confirmedNotSent: true })).outcome, "sent", mode);
+    assert.equal(fetchCalls, 2);
+    assert.equal(f.t.message_deliveries[0].status, "failed");
+    assert.equal(f.t.message_deliveries[0].error_code, "staff_confirmed_not_sent");
+    assert.ok(f.t.events.some((e) => e.event_type === "agreement.send_override"));
+    assert.equal(f.t.agreements[0].status, "sent");
+  }
+});
+
+test("a repeated request or double click is one attempt: the second is a duplicate and nothing more is sent", async () => {
+  const f = sendFixture();
+  const first = await sendAgreementsEmail(f.db, "u1", ["a1"], mail, false, { attemptKey: "k1" });
+  const second = await sendAgreementsEmail(f.db, "u1", ["a1"], mail, false, { attemptKey: "k1" });
+  assert.deepEqual([first.outcome, second.outcome], ["sent", "duplicate"]);
+  assert.equal(fetchCalls, 1);
+  assert.equal(f.t.events.filter((e) => e.event_type === "agreement.sent").length, 1);
+  assert.equal(stageEvents(f.t).length, 1);
+});
+
+test("two simultaneous requests with the same key send once", async () => {
+  const f = sendFixture();
+  const [a, b] = await Promise.all([
+    sendAgreementsEmail(f.db, "u1", ["a1"], mail, false, { attemptKey: "k1" }),
+    sendAgreementsEmail(f.db, "u1", ["a1"], mail, false, { attemptKey: "k1" }),
+  ]);
+  assert.deepEqual([a.outcome, b.outcome].sort(), ["duplicate", "sent"]);
+  assert.equal(fetchCalls, 1);
+});
+
+test("a reminder is a deliberate new send, but the same reminder request is not repeated", async () => {
+  const f = sendFixture();
+  await sendAgreementsEmail(f.db, "u1", ["a1"], mail, false, { attemptKey: "k1" });
+  assert.equal((await sendAgreementsEmail(f.db, "u1", ["a1"], mail, true, { attemptKey: "r1" })).outcome, "sent");
+  assert.equal((await sendAgreementsEmail(f.db, "u1", ["a1"], mail, true, { attemptKey: "r1" })).outcome, "duplicate");
+  assert.equal(fetchCalls, 2);
+  assert.match(f.t.events.find((e) => e.event_type === "agreement.reminder_sent")!.summary, /delivery is not confirmed/);
+});
+
+test("failures before the provider is reached report failed, send nothing, and leave no 'sent' record", async () => {
+  const a = sendFixture();
+  const downloadFails = { ...a.db, storage: { from: () => ({ download: async () => ({ data: null, error: new Error("missing") }) }) } } as unknown as SupabaseClient;
+  assert.equal((await sendAgreementsEmail(downloadFails, "u1", ["a1"], mail, false, { attemptKey: "k1" })).outcome, "failed");
+  assert.equal(fetchCalls, 0);
+  assert.equal(a.t.agreements[0].status, "generated");
+
+  const b = sendFixture();
+  const brokenInsert = { ...b.db, from: (table: string) => (table === "messages" ? { insert: () => ({ select: () => ({ single: async () => ({ error: { message: "db down" } }) }) }) } : (b.db as any).from(table)) } as unknown as SupabaseClient;
+  assert.equal((await quiet(() => sendAgreementsEmail(brokenInsert, "u1", ["a1"], mail, false, { attemptKey: "k1" }))).outcome, "failed");
+  assert.equal(fetchCalls, 0);
+  assert.equal(b.t.agreements[0].status, "generated");
+  assert.equal(b.t.message_deliveries.length, 0);
+});
+
+test("demo mode and missing Reply-To still stop the send before anything is recorded", async () => {
+  const f = sendFixture();
+  f.t.settings[0].value = { enabled: true, recipient_allowlist: [] };
+  assert.equal((await sendAgreementsEmail(f.db, "u1", ["a1"], mail, false, { attemptKey: "k1" })).outcome, "skipped");
+  assert.equal(f.t.message_deliveries.length, 0);
+  assert.equal(fetchCalls, 0);
+});
+
+test("the send action passes the form's attempt key and confirmation, requires an admin, and the page shows the recorded state", async () => {
+  const { readFileSync } = await import("node:fs");
+  const read = (p: string) => readFileSync(new URL(`../../${p}`, import.meta.url), "utf8");
+  const actions = read("app/(app)/agreements/actions.ts");
+  assert.match(actions, /export async function sendAction[\s\S]*await requireAdmin\(\)/);
+  assert.match(actions, /attemptKey: str\(formData, "send_key"\)/);
+  assert.match(actions, /confirmedNotSent: formData\.get\("confirm_resend"\) === "on"/);
+  const page = read("app/(app)/agreements/[id]/page.tsx");
+  assert.match(page, /summarizeSends/);
+  assert.match(page, /Staff attention required/);
+  assert.match(page, /delivery not confirmed/);
+});
+
+// ---- A message record is not proof of sending ----
+
+test("email status comes only from recorded provider outcomes: a message with no delivery attempt is never shown as Sent", () => {
+  assert.equal(sentEmailStatus([]), "Not sent");
+  assert.equal(sentEmailStatus(null), "Not sent");
+  assert.equal(sentEmailStatus([{ status: "queued", accepted_at: null }]), "Outcome unknown");
+  assert.equal(sentEmailStatus([{ status: "failed", accepted_at: null }]), "Not sent");
+  assert.equal(sentEmailStatus([{ status: "submitted", accepted_at: "2026-10-01T00:00:00Z" }]), "Sent");
+  assert.equal(sentEmailStatus([{ status: "delivered", accepted_at: "2026-10-01T00:00:00Z" }]), "Delivered");
+  assert.equal(sentEmailStatus([{ status: "bounced", accepted_at: "2026-10-01T00:00:00Z" }]), "Bounced");
+  assert.equal(sentEmailStatus([{ status: "failed", accepted_at: null }, { status: "submitted", accepted_at: "2026-10-01T00:00:00Z" }]), "Sent");
+});
+
+test("after simultaneous duplicate requests, every message the Contact page lists is shown from its own delivery outcome", async () => {
+  const f = sendFixture();
+  await Promise.all([
+    sendAgreementsEmail(f.db, "u1", ["a1"], mail, false, { attemptKey: "k1" }),
+    sendAgreementsEmail(f.db, "u1", ["a1"], mail, false, { attemptKey: "k1" }),
+  ]);
+  assert.equal(fetchCalls, 1);
+  const shown = f.t.messages.map((m) => sentEmailStatus(f.t.message_deliveries.filter((d) => d.message_id === m.id) as never));
+  assert.equal(shown.filter((x) => x === "Sent").length, 1, "exactly the one email that went out is Sent");
+  assert.ok(shown.every((x) => x === "Sent" || x === "Not sent"), "a leftover message with no delivery attempt is Not sent");
+});
+
+test("the Contact page derives each email's status from its delivery attempts, not from the message record", async () => {
+  const { readFileSync } = await import("node:fs");
+  const page = readFileSync(new URL("../../app/(app)/contacts/[id]/page.tsx", import.meta.url), "utf8");
+  assert.match(page, /message_deliveries\(status, accepted_at\)/);
+  assert.match(page, /sentEmailStatus\(m\.message_deliveries\)/);
+  assert.doesNotMatch(page, /"outbound" \? "Sent"/);
+});
+
+test("the uncertain-send confirmation tells staff to check the provider's records and calls itself a staff statement", async () => {
+  const { readFileSync } = await import("node:fs");
+  const ui = readFileSync(new URL("../../app/(app)/agreements/client.tsx", import.meta.url), "utf8");
+  assert.match(ui, /check the email provider&apos;s own records/);
+  assert.match(ui, /my statement, not as confirmation from the provider/);
+  const f = sendFixture();
+  provider = "error500";
+  await sendAgreementsEmail(f.db, "u1", ["a1"], mail, false, { attemptKey: "k1" });
+  provider = "ok";
+  await sendAgreementsEmail(f.db, "u1", ["a1"], mail, false, { attemptKey: "k2", confirmedNotSent: true });
+  assert.match(f.t.message_deliveries[0].error_summary, /staff statement, not evidence from the provider/);
+  assert.match(f.t.events.find((e) => e.event_type === "agreement.send_override")!.summary, /not confirmation from the provider/);
 });

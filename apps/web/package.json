@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "npx tsx --test src/lib/agreements/agreements.test.ts src/lib/agreements/stage-sync.test.ts src/lib/agreements/orchestration.test.ts src/lib/inbox/inbox-links.test.ts src/lib/leads/manual.test.ts src/lib/leads/estimate-approval.test.ts src/lib/leads/intake-estimate.test.ts",
+    "test": "npx tsx --test src/lib/agreements/agreements.test.ts src/lib/agreements/stage-sync.test.ts src/lib/agreements/orchestration.test.ts src/lib/inbox/inbox-links.test.ts src/lib/reliability.test.ts src/lib/leads/manual.test.ts src/lib/leads/estimate-approval.test.ts src/lib/leads/intake-estimate.test.ts",
     "ai:check": "npx tsx --env-file=.env.local scripts/ai-check.ts",
     "preview": "next build && next start -p 3001"
   },

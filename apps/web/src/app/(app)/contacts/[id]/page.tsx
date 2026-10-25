@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, FileText, Mail, Phone } from "lucide-react";
 import { sourceLabel } from "@/lib/contacts/sources";
+import { sentEmailStatus } from "@/lib/email/status";
 import { loadContactConversations } from "@/lib/inbox/links";
 import { createClient } from "@/lib/supabase/server";
 import { ConversationList } from "../../conversation-list";
@@ -58,7 +59,7 @@ export default async function ClientPage({
     // One round trip: this client's email messages, found through their conversations.
     supabase
       .from("messages")
-      .select("id, direction, subject, created_at, conversations!inner(contact_id, channel)")
+      .select("id, direction, subject, created_at, conversations!inner(contact_id, channel), message_deliveries(status, accepted_at)")
       .eq("conversations.contact_id", id)
       .eq("conversations.channel", "email")
       .order("created_at", { ascending: false })
@@ -235,7 +236,7 @@ export default async function ClientPage({
                 {(mails ?? []).map((m) => (
                   <li key={m.id} className="flex items-center justify-between gap-3 py-2.5 text-sm first:pt-0 last:pb-0">
                     <span className="min-w-0 truncate">
-                      <span className="mr-2 text-xs text-muted">{m.direction === "outbound" ? "Sent" : "Received"}</span>
+                      <span className="mr-2 text-xs text-muted">{m.direction === "outbound" ? sentEmailStatus(m.message_deliveries) : "Received"}</span>
                       {m.subject || "(no subject)"}
                     </span>
                     <span className="shrink-0 text-xs text-muted">{day(m.created_at)}</span>

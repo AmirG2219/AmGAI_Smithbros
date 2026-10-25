@@ -30,6 +30,8 @@ export function SendDialog({
   message,
   blockers,
   alsoOption,
+  sendKey,
+  needsConfirm = false,
   primary = true,
   compact = false,
 }: {
@@ -41,6 +43,8 @@ export function SendDialog({
   message: string;
   blockers: string[];
   alsoOption?: { id: string; label: string };
+  sendKey?: string; // identifies this opening of the form: repeating the same request cannot send twice
+  needsConfirm?: boolean; // an earlier attempt has no recorded outcome: staff must confirm it was not sent
   primary?: boolean;
   compact?: boolean;
 }) {
@@ -75,6 +79,13 @@ export function SendDialog({
               <X size={18} />
             </button>
           </div>
+          {sendKey && <input type="hidden" name="send_key" value={sendKey} />}
+          {needsConfirm && (
+            <label className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+              <input type="checkbox" name="confirm_resend" required className="mt-0.5" />
+              <span><strong>An earlier send has no recorded result.</strong> Before sending again, check the email provider&apos;s own records (its sending log or dashboard) for this recipient and time. I have checked them and found no sent email. This is recorded as my statement, not as confirmation from the provider.</span>
+            </label>
+          )}
           <div>
             <label className={labelCls} htmlFor="to">To</label>
             <input id="to" name="to" type="email" required defaultValue={defaultTo} className={input} />

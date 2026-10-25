@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, Download, FilePlus2, Pencil, ShieldCheck, XCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { STATUS, fmtDate, pretty } from "@/lib/agreements/status";
-import { defaultMessage, defaultReminder, sendBlockers, DOC_LABEL } from "@/lib/agreements/send";
+import { defaultMessage, defaultReminder, loadSendAttempts, sendBlockers, summarizeSends, DOC_LABEL } from "@/lib/agreements/send";
+import { newSendKey } from "@/lib/leads/send-key";
 import { DOC_NAME, inputsOf, missingFields, type DocType, type Snapshot } from "@/lib/agreements/vars";
 import { Card } from "../../ui";
 import { cancelAction, generateAction, reviseAction, sendAction, verifyAction } from "../actions";
@@ -19,15 +20,23 @@ const NOTICES: Record<string, string> = {
   cancelled: "This agreement was cancelled.",
   signed: "Signed copy uploaded and kept as evidence. It is not verified yet: review it and verify it.",
   verified: "Signed copy verified.",
-  "send-sent": "Sent to the customer with the PDF attached. It is saved on their timeline.",
+  "send-sent": "Accepted by the email provider and sent to the customer with the PDF attached. Delivery to their inbox is not confirmed. It is saved on their timeline.",
+  "send-uncertain": "Staff attention required: the email provider gave no definite answer, so this email may or may not have gone out. It was NOT sent again. Check the email provider's own records before trying again.",
+  "send-unrecorded": "The email was accepted by the email provider, but some records could not be saved. Do NOT send it again. Staff attention required; see History.",
+  "send-recovered": "This document had already been emailed (accepted by the email provider). The missing status has now been saved. Nothing was sent again.",
+  "send-duplicate": "That send was already processed. Nothing was sent again.",
   "send-blocked": "Sending is switched off until email and template approval are in place.",
   "send-skipped": "Not sent: the recipient is not on the demo-mode allowlist.",
-  "send-failed": "The email could not be sent. Nothing was marked as sent. Please try again.",
+  "send-failed": "The email was not sent (the email provider refused it or it could not be prepared). Nothing was marked as sent. You can try again.",
   "send-invalid": "That could not be sent. Check the address, subject and message.",
-  "reminder-sent": "Reminder sent.",
+  "reminder-sent": "Reminder accepted by the email provider. Delivery to their inbox is not confirmed.",
+  "reminder-uncertain": "Staff attention required: the email provider gave no definite answer, so the reminder may or may not have gone out. It was NOT sent again.",
+  "reminder-unrecorded": "The reminder was accepted by the email provider, but some records could not be saved. Do NOT send it again; see History.",
+  "reminder-recovered": "Nothing was sent again; the missing record was saved.",
+  "reminder-duplicate": "That reminder was already processed. Nothing was sent again.",
   "reminder-blocked": "Sending is switched off until email and template approval are in place.",
   "reminder-skipped": "Not sent: the recipient is not on the demo-mode allowlist.",
-  "reminder-failed": "The reminder could not be sent. Please try again.",
+  "reminder-failed": "The reminder was not sent (the email provider refused it or it could not be prepared). You can try again.",
   "reminder-invalid": "That could not be sent. Check the address, subject and message.",
 };
 
@@ -85,6 +94,11 @@ export default async function AgreementPage({
   const other = sibling?.[0];
   const otherSendable = other && ["generated", "sent"].includes(other.status) ? other : null;
 
+  // What the delivery records say about earlier emails of this document (read as the signed-in user, so row security applies).
+  const attempts = generated ? await loadSendAttempts(supabase, [generated.id]).catch(() => []) : [];
+  const sendState = summarizeSends(attempts, a.status as string);
+  const sendKey = newSendKey();
+
   const status = a.status as string;
   const st = STATUS[status];
   const revision = snap._revision ?? 1;
@@ -109,6 +123,8 @@ export default async function AgreementPage({
         message={opts.reminder ? defaultReminder(c!.first_name, [type]) : defaultMessage(c!.first_name, [type])}
         blockers={blockers}
         alsoOption={opts.reminder ? undefined : alsoOption}
+        sendKey={sendKey}
+        needsConfirm={sendState.kind === "uncertain"}
       />
     );
 
@@ -207,6 +223,18 @@ export default async function AgreementPage({
       {error && <p className="mb-3 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-800">{error}</p>}
       {["generated", "sent"].includes(status) && !email && (
         <p className="mb-3 rounded-xl border border-line bg-white px-4 py-2.5 text-sm text-muted">The customer has no email address on file, so this can&apos;t be sent from here.</p>
+      )}
+      {sendState.kind === "uncertain" && (
+        <p className="mb-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-900">
+          <strong>Staff attention required.</strong> An email attempt on {fmtDate(sendState.at, true)} has no recorded result, so it may or may not have reached the customer.
+          Sending is paused to avoid emailing them twice. Check the email provider&apos;s own records (its sending log or dashboard). Only if they show nothing was sent, say so in the Send window; that is recorded as your statement, not the provider&apos;s.
+        </p>
+      )}
+      {sendState.kind === "unrecorded" && (
+        <p className="mb-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-900">
+          <strong>Already emailed.</strong> The email provider accepted this document on {fmtDate(sendState.at, true)}, but its status was not saved. Do not send it again:
+          choosing Send now only saves the missing status.
+        </p>
       )}
       {missing.length > 0 && (
         <p className="mb-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-900">Still needed before the PDF can be generated: {missing.join(", ")}.</p>
@@ -320,6 +348,14 @@ export default async function AgreementPage({
               <dt className="text-muted">Template</dt><dd className="break-words">{tplName} v{tv?.version_number}</dd>
               <dt className="text-muted">Created</dt><dd>{fmtDate(a.created_at)}</dd>
               <dt className="text-muted">Sent</dt><dd>{fmtDate(a.sent_at)}</dd>
+              <dt className="text-muted">Last email</dt>
+              <dd>
+                {sendState.kind === "none" && "None yet"}
+                {sendState.kind === "accepted" && (sendState.delivered ? `Delivered ${fmtDate(sendState.at, true)}` : `Accepted by provider ${fmtDate(sendState.at, true)} (delivery not confirmed)`)}
+                {sendState.kind === "unrecorded" && `Accepted by provider ${fmtDate(sendState.at, true)}; status not saved`}
+                {sendState.kind === "rejected" && `Refused by provider ${fmtDate(sendState.at, true)}; nothing sent`}
+                {sendState.kind === "uncertain" && "Outcome unknown: attention required"}
+              </dd>
               <dt className="text-muted">Verified</dt><dd>{fmtDate(a.verified_at)}</dd>
               {snap._revision_of && (<><dt className="text-muted">Revises</dt><dd><Link href={`/agreements/${snap._revision_of}`} className="text-bronze hover:text-walnut">Earlier version</Link></dd></>)}
               {next && (<><dt className="text-muted">Replaced by</dt><dd><Link href={`/agreements/${next.id}`} className="text-bronze hover:text-walnut">Newer revision</Link></dd></>)}

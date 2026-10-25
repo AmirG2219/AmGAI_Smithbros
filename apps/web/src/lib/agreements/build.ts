@@ -491,14 +491,20 @@ export async function logEvent(
   adminId: string,
   type: string,
   summary: string,
-) {
-  await db.from("events").insert({
-    contact_id: ctx.contactId,
-    project_id: ctx.projectId,
-    event_type: type,
-    summary,
-    details: { agreement_id: agreementId },
-    actor_user_id: adminId,
-    source: "dashboard",
-  });
+  details: Record<string, unknown> = {},
+): Promise<boolean> {
+  try {
+    const r = await db.from("events").insert({
+      contact_id: ctx.contactId,
+      project_id: ctx.projectId,
+      event_type: type,
+      summary,
+      details: { ...details, agreement_id: agreementId },
+      actor_user_id: adminId,
+      source: "dashboard",
+    });
+    return !r.error;
+  } catch {
+    return false;
+  }
 }

@@ -151,10 +151,13 @@ export async function sendAction(id: string, reminder: boolean, formData: FormDa
       ids,
       { to: str(formData, "to"), subject: str(formData, "subject"), body: str(formData, "body") },
       reminder,
+      // One opening of the send form is one attempt, so a double click or a repeated request cannot email twice.
+      { attemptKey: str(formData, "send_key"), confirmedNotSent: formData.get("confirm_resend") === "on" },
     ));
   } catch (e) {
-    console.error("[agreements] send failed:", e);
-    outcome = "failed";
+    // sendAgreementsEmail does not throw; this is a safety net, and an unexpected error is never reported as "nothing was sent".
+    console.error("[agreements] send crashed:", e);
+    outcome = "uncertain";
   }
   redirect(`${back}?notice=${reminder ? "reminder" : "send"}-${outcome}`);
 }
