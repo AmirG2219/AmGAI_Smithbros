@@ -4,6 +4,7 @@ import { sendRecordedEmail } from "@/lib/email/record";
 import { emailEnabled } from "@/lib/email/resend";
 import { plainEmail } from "@/lib/email/templates";
 import { logEvent } from "./build";
+import { advanceStage } from "./project-stage";
 
 export const DOC_LABEL: Record<string, string> = {
   work_contract: "work contract",
@@ -146,5 +147,16 @@ export async function sendAgreementsEmail(
       `${reminder ? "Reminder about the" : "The"} ${DOC_LABEL[row.document_type]} ${reminder ? "emailed" : "was emailed"} to ${to}${docs.length > 1 && !reminder ? " together with the other document" : ""}`,
     );
   }
+  // Only a sent work contract moves the project on; a policy and liability agreement alone does not. Repeats are harmless.
+  // The email is already delivered and recorded, so a failure here must not be reported as a failed send; it is logged
+  // and the next send or reminder of the contract repeats the step.
+  if (docs.some(({ row }) => row.document_type === "work_contract"))
+    try {
+      await advanceStage(db, ctx, adminId, "agreement_sent", "the work contract was emailed to the customer", {
+        agreement_ids: docs.filter(({ row }) => row.document_type === "work_contract").map(({ row }) => row.id),
+      });
+    } catch (e) {
+      console.error("[agreements] project stage not updated after send:", e);
+    }
   return { outcome: "sent", projectId };
 }

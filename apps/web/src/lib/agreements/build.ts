@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { renderAgreementPdf } from "./render";
+import { advanceStage } from "./project-stage";
 import {
   DOC_NAME,
   buildVars,
@@ -162,6 +163,9 @@ export async function createDrafts(
     await recordAcceptedQuote(db, adminId, ctx, newQuote);
     ctx = await loadContext(db, projectId);
   }
+  // An accepted final quote is on record (website lead or entered here), so the project shows it. Never moves a project backwards.
+  if (docs.includes("work_contract") && ctx.quote)
+    await advanceStage(db, ctx, adminId, "customer_accepted", "an accepted final quote is on record", { final_quote_id: ctx.quote.id });
 
   const ids: string[] = [];
   try {
@@ -440,6 +444,15 @@ export async function recordAcceptedQuote(
     .select("id")
     .single();
   if (q.error) throw q.error;
+  await db.from("events").insert({
+    contact_id: ctx.contactId,
+    project_id: ctx.projectId,
+    event_type: "final_quote.prepared",
+    summary: "Final quote prepared and approved by staff",
+    details: { final_quote_id: q.data.id },
+    actor_user_id: adminId,
+    source: "dashboard",
+  });
   const now = new Date().toISOString();
   const ap = await db.from("final_quotes").update({ status: "approved", approved_by: adminId, approved_at: now }).eq("id", q.data.id);
   if (ap.error) throw new UserError(ap.error.message.replace(/^final_quotes: /, ""));
@@ -461,6 +474,12 @@ export async function recordAcceptedQuote(
     details: { final_quote_id: q.data.id },
     actor_user_id: adminId,
     source: "dashboard",
+  });
+  // The quote is accepted on record from this moment (and not before: drafts and approved quotes never get here).
+  // The stage entry says staff recorded it; it is not independent evidence of a customer signature.
+  await advanceStage(db, ctx, adminId, "customer_accepted", "an accepted final quote was recorded by staff", {
+    final_quote_id: q.data.id,
+    basis: "staff_recorded",
   });
   return q.data.id as string;
 }

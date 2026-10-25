@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { UserError, loadContext, logEvent } from "./build";
+import { syncWonFromContract } from "./project-stage";
 import { DOC_NAME, type DocType } from "./vars";
 
 export const MAX_SIGNED_BYTES = 15 * 1024 * 1024;
@@ -58,6 +59,12 @@ export async function verifySigned(db: SupabaseClient, adminId: string, id: stri
     .eq("id", id)
     .maybeSingle();
   if (!a) throw new UserError("That agreement could not be found.");
+  // Already verified (double click, retry): nothing new to record. For a work contract, finish the project stage if a
+  // previous attempt was interrupted before it; a policy and liability agreement never changes the stage.
+  if (a.status === "verified") {
+    if (a.document_type === "work_contract") await syncWonFromContract(db, await loadContext(db, a.project_id), adminId);
+    return;
+  }
   if (a.status !== "returned") throw new UserError("There is no returned signed copy waiting for review.");
 
   const docs = (a.agreement_documents as { id: string; document_kind: string; revision_number: number; verified_at: string | null }[])
@@ -74,7 +81,11 @@ export async function verifySigned(db: SupabaseClient, adminId: string, id: stri
       .eq("id", latest.id);
     if (d.error) throw new UserError(dbMessage(d.error.message));
   }
-  const ag = await db.from("agreements").update({ status: "verified", verified_by: adminId, verified_at: now }).eq("id", id);
+  // Only the request that actually flips returned -> verified writes the history entry.
+  const ag = await db.from("agreements").update({ status: "verified", verified_by: adminId, verified_at: now }).eq("id", id).eq("status", "returned").select("id");
   if (ag.error) throw new UserError(dbMessage(ag.error.message));
-  await logEvent(db, await loadContext(db, a.project_id), id, adminId, "agreement.verified", `Signed ${DOC_NAME[a.document_type as DocType]} reviewed and verified`);
+  const ctx = await loadContext(db, a.project_id);
+  if (ag.data && ag.data.length > 0)
+    await logEvent(db, ctx, id, adminId, "agreement.verified", `Signed ${DOC_NAME[a.document_type as DocType]} reviewed and verified`);
+  if (a.document_type === "work_contract") await syncWonFromContract(db, ctx, adminId);
 }
