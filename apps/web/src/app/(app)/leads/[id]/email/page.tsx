@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Sparkles } from "lucide-react";
+import { replyToConfigured } from "@/lib/email/reply-to";
 import { emailEnabled } from "@/lib/email/resend";
 import { loadLeadForEmail } from "@/lib/leads/email-context";
 import { draftEnabled, templateFor, type TemplateKind } from "@/lib/leads/email-draft";
@@ -16,6 +17,7 @@ const errors: Record<string, string> = {
   missing: "Add a subject and a message.",
   off: "Email sending is turned off in this environment, so nothing was sent. Your text is kept below.",
   "no-email": "This lead has no email address.",
+  "no-inbox": "Not sent: the company inbox address (INBOX_ADDRESS) is not set, so the customer's reply would have nowhere to go. Your text is kept below.",
   demo: "Not sent: demo mode only allows emails to approved test addresses. Your text is kept below.",
   failed: "The email could not be sent. Your text is kept below. Please try again.",
   "ai-off": "AI drafting is off until an OpenAI API key is added.",
@@ -124,6 +126,9 @@ export default async function ComposeEmail({
             </div>
             {!emailEnabled() && (
               <p className="text-xs text-bronze">Email sending is off in this environment, so sending won&apos;t go out yet.</p>
+            )}
+            {emailEnabled() && !replyToConfigured() && (
+              <p className="text-xs text-bronze">The company inbox address (INBOX_ADDRESS) is not set, so sending is blocked until it is.</p>
             )}
           </Card>
           <button

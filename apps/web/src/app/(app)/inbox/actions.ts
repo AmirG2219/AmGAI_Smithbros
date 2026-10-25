@@ -5,6 +5,7 @@ import { requireAdmin } from "@/lib/auth";
 import { createOrRefreshDraft } from "@/lib/assistant/drafts";
 import { gmailSendConfigured, sendApprovedDraft } from "@/lib/assistant/send";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { withoutInferredProjects } from "@/lib/inbox/links";
 import { createClient } from "@/lib/supabase/server";
 import { OPEN_DRAFT, type ActionResult, type DraftT, type LinkInfo, type PanelData } from "./types";
 
@@ -22,8 +23,12 @@ async function readDraft(db: SupabaseClient, id: string): Promise<DraftT | null>
 export async function getPanel(id: string): Promise<PanelData | null> {
   await requireAdmin();
   if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
-  const { data } = await (await createClient()).rpc("email_panel", { p_id: id });
-  return (data as PanelData | null) ?? null;
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("email_panel", { p_id: id });
+  const panel = (data as PanelData | null) ?? null;
+  if (!panel) return null;
+  const [email] = withoutInferredProjects([panel.email]);
+  return { ...panel, email };
 }
 
 // The earlier messages in a conversation, loaded quietly after an email opens.
@@ -155,15 +160,11 @@ export async function getLinks(emailId: string): Promise<LinkInfo> {
   const none: LinkInfo = { contact: null, project: null };
   if (!/^[0-9a-f-]{36}$/i.test(emailId)) return none;
   const supabase = await createClient();
-  const { data: e } = await supabase.from("inbox_emails").select("contact_id, project_id").eq("id", emailId).maybeSingle();
+  const { data: e } = await supabase.from("inbox_emails").select("contact_id").eq("id", emailId).maybeSingle();
   if (!e?.contact_id) return none;
-  const [c, p] = await Promise.all([
-    supabase.from("contacts").select("id, first_name, last_name, email, phone").eq("id", e.contact_id).maybeSingle(),
-    e.project_id
-      ? supabase.from("projects").select("id, project_type, site_address_line1, site_city, stage").eq("id", e.project_id).maybeSingle()
-      : Promise.resolve({ data: null }),
-  ]);
-  return { contact: (c.data as LinkInfo["contact"]) ?? null, project: (p.data as LinkInfo["project"]) ?? null };
+  const { data: c } = await supabase.from("contacts").select("id, first_name, last_name, email, phone").eq("id", e.contact_id).maybeSingle();
+  // The project card needs an explicit link; mail is not tied to a project by its sender alone.
+  return { contact: (c as LinkInfo["contact"]) ?? null, project: null };
 }
 
 // Staff pressed "Create contact" for an unknown sender. Nothing here runs unless a person asks for it.
@@ -179,13 +180,9 @@ export async function createContactFromEmail(emailId: string, firstName: string,
   if (e.contact_id) return { ok: true, links: await getLinks(emailId) };
 
   const address = String(e.from_address).trim().toLowerCase();
-  const { data: existing } = await db.from("contacts").select("id, projects(id, created_at)").eq("email_normalized", address).maybeSingle();
+  const { data: existing } = await db.from("contacts").select("id").eq("email_normalized", address).maybeSingle();
   let contactId = existing?.id as string | undefined;
-  let projectId: string | null = null;
-  if (existing) {
-    const ps = ((existing.projects ?? []) as { id: string; created_at: string }[]).sort((a, b) => b.created_at.localeCompare(a.created_at));
-    projectId = ps[0]?.id ?? null;
-  } else {
+  if (!existing) {
     const { data: created, error } = await db
       .from("contacts")
       .insert({ first_name: first, last_name: text(lastName, 100) || null, email: address, source: "manual" })
@@ -198,6 +195,6 @@ export async function createContactFromEmail(emailId: string, firstName: string,
     contactId = created.id as string;
   }
   // Link this email, and any other unlinked mail from the same address.
-  await db.from("inbox_emails").update({ contact_id: contactId, project_id: projectId }).eq("from_address", address).eq("direction", "inbound").is("contact_id", null);
+  await db.from("inbox_emails").update({ contact_id: contactId }).eq("from_address", address).eq("direction", "inbound").is("contact_id", null);
   return { ok: true, links: await getLinks(emailId) };
 }

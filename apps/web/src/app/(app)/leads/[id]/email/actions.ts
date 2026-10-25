@@ -1,5 +1,6 @@
 "use server";
 
+import { replyToAddress, replyToConfigured } from "@/lib/email/reply-to";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
 import { sendRecordedEmail } from "@/lib/email/record";
@@ -40,6 +41,7 @@ export async function sendEmailAction(leadId: string, formData: FormData) {
   const sendKey = text(formData, "send_key", 80) || crypto.randomUUID();
   if (!subject || !body) return back(leadId, subject, body, { error: "missing" });
   if (!emailEnabled()) return back(leadId, subject, body, { error: "off" });
+  if (!replyToConfigured()) return back(leadId, subject, body, { error: "no-inbox" });
 
   const db = createAdminClient();
   const lead = await loadLeadForEmail(db, leadId);
@@ -57,7 +59,7 @@ export async function sendEmailAction(leadId: string, formData: FormData) {
       mail,
       // The same form submitted twice reuses this key, so the customer can never get the email twice.
       idempotencyKey: `lead-email:${leadId}:${sendKey}`,
-      replyTo: process.env.INBOX_ADDRESS || undefined,
+      replyTo: replyToAddress(),
     });
   } catch (e) {
     // 23505 = this exact send was already recorded (double click). Treat as done.

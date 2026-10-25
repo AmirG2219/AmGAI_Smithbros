@@ -104,7 +104,7 @@ let provider: "ok" | "fail" = "ok";
 beforeEach(() => {
   fetchCalls = 0;
   provider = "ok";
-  Object.assign(process.env, { EMAIL_SENDING_ENABLED: "true", RESEND_API_KEY: "test-key", EMAIL_FROM: "Smith Bros <noreply@example.test>" });
+  Object.assign(process.env, { EMAIL_SENDING_ENABLED: "true", INBOX_ADDRESS: "shared@example.test", RESEND_API_KEY: "test-key", EMAIL_FROM: "Smith Bros <noreply@example.test>" });
   globalThis.fetch = (async () => {
     fetchCalls++;
     return provider === "ok" ? new Response(JSON.stringify({ id: "prov-1" }), { status: 200 }) : new Response(JSON.stringify({ message: "nope" }), { status: 500 });
@@ -237,6 +237,8 @@ test("provider failure, demo-mode skip, blocked template and invalid input leave
     ["demo mode skips", (tb) => (tb.settings[0].value = { enabled: true, recipient_allowlist: [] }), "skipped"],
     ["placeholder template", (tb) => (tb.agreement_template_versions[0].agreement_templates.name = "Placeholder contract"), "blocked"],
     ["bad recipient", () => {}, "invalid", "not-an-email"],
+    ["INBOX_ADDRESS missing", () => delete process.env.INBOX_ADDRESS, "blocked"],
+    ["INBOX_ADDRESS invalid", () => (process.env.INBOX_ADDRESS = "nope"), "blocked"],
   ];
   for (const [name, setup, outcome, to] of cases) {
     const { db, t } = fakeDb({ ...base("customer_accepted", [accepted]), ...generated("work_contract", "a1") }, files);

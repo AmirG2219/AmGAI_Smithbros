@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { explicitProjectId } from "@/lib/inbox/links";
 import { analyzeEmail, triageEnabled } from "./analyze";
 
 export type InboundEmail = {
@@ -94,16 +95,14 @@ export function parseInbound(body: unknown): { ok: true; value: InboundEmail } |
   };
 }
 
-// Stores the email (once) and links it to a known contact and their latest project.
+// Stores the email (once) and links it to a known contact (exact address match). It is never linked to a project: an email
+// does not say which project it is about, even for a customer with only one. Unknown senders stay unlinked.
 export async function storeInboundEmail(db: SupabaseClient, e: InboundEmail) {
   const { data: contact } = await db
     .from("contacts")
-    .select("id, projects(id, created_at)")
+    .select("id")
     .eq("email_normalized", e.from_address)
     .maybeSingle();
-  const projects = ((contact?.projects ?? []) as { id: string; created_at: string }[]).sort((a, b) =>
-    b.created_at.localeCompare(a.created_at),
-  );
 
   const { attachments, ...fields } = e;
   const { data, error } = await db
@@ -112,7 +111,7 @@ export async function storeInboundEmail(db: SupabaseClient, e: InboundEmail) {
       provider: "gmail",
       ...fields,
       contact_id: contact?.id ?? null,
-      project_id: contact && projects[0] ? projects[0].id : null,
+      project_id: null,
       analysis_status: triageEnabled() ? "pending" : "skipped",
     })
     .select("id")
@@ -184,7 +183,7 @@ export async function analyzeStoredEmail(db: SupabaseClient, id: string) {
       from: e.from_name ? `${e.from_name} <${e.from_address}>` : e.from_address,
       subject: e.subject,
       body: e.body_text,
-      context: await contextFor(db, e.contact_id, e.project_id),
+      context: await contextFor(db, e.contact_id, explicitProjectId(e)),
     });
     await db
       .from("inbox_emails")

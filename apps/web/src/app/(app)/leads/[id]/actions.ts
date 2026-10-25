@@ -1,5 +1,6 @@
 "use server";
 
+import { customerEmailReady, replyToAddress } from "@/lib/email/reply-to";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
@@ -83,7 +84,11 @@ export async function scheduleConsultation(projectId: string, formData: FormData
   const notify = formData.get("notify") === "on";
   if (!notify) {
     notice = "booked";
-  } else if (emailEnabled() && contact?.email) {
+  } else if (!contact?.email || !emailEnabled()) {
+    notice = "booked-email-off";
+  } else if (!customerEmailReady()) {
+    notice = "booked-no-inbox";
+  } else {
     const r = await sendRecordedEmail({
       db,
       contactId: project.contact_id,
@@ -98,7 +103,7 @@ export async function scheduleConsultation(projectId: string, formData: FormData
         calendar: calendarLinks(invite),
       }),
       idempotencyKey: `consult-confirm:${appt.data.id}:1`,
-      replyTo: process.env.INBOX_ADDRESS || undefined,
+      replyTo: replyToAddress(),
       attachments: [{ filename: "consultation.ics", content: icsFile(invite), contentType: "text/calendar; method=PUBLISH" }],
     });
     if (r.status === "sent") {
@@ -113,8 +118,6 @@ export async function scheduleConsultation(projectId: string, formData: FormData
       );
       notice = "booked-email-problem";
     }
-  } else {
-    notice = "booked-email-off";
   }
 
   revalidatePath(`/leads/${projectId}`);

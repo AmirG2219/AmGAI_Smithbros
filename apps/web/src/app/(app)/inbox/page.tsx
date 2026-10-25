@@ -1,6 +1,7 @@
 import { replyAiEnabled } from "@/lib/assistant/draft";
 import { gmailSendConfigured } from "@/lib/assistant/send";
 import { findWaitingOnCustomers } from "@/lib/assistant/waiting";
+import { withoutInferredProjects } from "@/lib/inbox/links";
 import { createClient } from "@/lib/supabase/server";
 import { PAGE_SIZE, pageOf, rangeOf } from "../pager";
 import { InboxView, type TabT } from "./inbox-view";
@@ -67,10 +68,13 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
     list,
   ]);
 
-  const rows = ((res?.data ?? []) as unknown as RawRow[]).map((r) => ({
-    ...r,
-    contacts: Array.isArray(r.contacts) ? (r.contacts[0] ?? null) : r.contacts,
-  })) as EmailT[];
+  // Stored project ids may be old guesses, so none is shown as a project link (see lib/inbox/links.ts).
+  const rows = withoutInferredProjects(
+    ((res?.data ?? []) as unknown as RawRow[]).map((r) => ({
+      ...r,
+      contacts: Array.isArray(r.contacts) ? (r.contacts[0] ?? null) : r.contacts,
+    })) as EmailT[],
+  );
   const waiting = waitingAll.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const count: Record<string, number> = { reply: replyBadge, waiting: waitingAll.length, all: 0, done: 0, sent: 0 };
 

@@ -6,6 +6,7 @@ import { label } from "@/lib/leads/inquiry";
 import { createClient } from "@/lib/supabase/server";
 import { Card, PageHeader, Pill } from "../../ui";
 import { missingDetails } from "@/lib/leads/manual";
+import { customerEmailReady, replyToConfigured } from "@/lib/email/reply-to";
 import { emailEnabled } from "@/lib/email/resend";
 import { cancelConsultation, markReviewed, scheduleConsultation, sendEstimateAction } from "./actions";
 import { BookConsultation } from "./book-consultation";
@@ -27,6 +28,7 @@ const notices: Record<string, string> = {
   booked: "Consultation booked.",
   "booked-emailed": "Consultation booked and the confirmation email was sent.",
   "booked-email-off": "Consultation booked. Email sending is off, so no confirmation was sent.",
+  "booked-no-inbox": "Consultation booked, but no confirmation was sent: the company inbox address (INBOX_ADDRESS) is not set, so customer replies would go nowhere.",
   "booked-email-problem":
     "Consultation booked, but the confirmation email was not sent. See the timeline.",
   cancelled: "Consultation cancelled.",
@@ -276,10 +278,11 @@ export default async function LeadDetail({
                     <ul className="mb-3 list-disc space-y-1 pl-5 text-sm text-bronze">
                       {!c?.email && <li>The customer has no email address.</li>}
                       {!emailEnabled() && <li>Email sending is not configured, so it cannot be sent yet.</li>}
+                      {!replyToConfigured() && <li>The company inbox address (INBOX_ADDRESS) is not set, so customer replies would not reach the Inbox.</li>}
                       {demo?.enabled && <li>Demo mode is on: emails only go to approved test addresses.</li>}
                     </ul>
                     <form action={sendEstimateAction.bind(null, id, est.id)}>
-                      <button disabled={!c?.email || !emailEnabled()} className="rounded-lg bg-walnut px-4 py-2 text-sm font-medium text-cream transition-colors hover:bg-bronze disabled:cursor-not-allowed disabled:opacity-40">Send estimate now</button>
+                      <button disabled={!c?.email || !customerEmailReady()} className="rounded-lg bg-walnut px-4 py-2 text-sm font-medium text-cream transition-colors hover:bg-bronze disabled:cursor-not-allowed disabled:opacity-40">Send estimate now</button>
                     </form>
                   </div>
                 )}

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { allowedByDemoMode } from "@/lib/email/record";
+import { explicitProjectId } from "@/lib/inbox/links";
 import { defaultSignature, loadKnowledge } from "./knowledge";
 
 // Replies go out from the owner's own Gmail through an n8n workflow, so they thread properly in his mailbox.
@@ -65,6 +66,8 @@ export async function sendApprovedDraft(db: SupabaseClient, draftId: string, adm
   }
 
   const now = new Date().toISOString();
+  // Our reply and its timeline entry join a project only through an explicit link, never an inferred one.
+  const projectId = explicitProjectId(email);
   await db.from("email_drafts").update({ status: "sent", sent_at: now, sent_message_id: sentId, error_summary: null }).eq("id", draftId);
 
   // Keep our own reply in the thread, and close the loop on the original email.
@@ -79,7 +82,7 @@ export async function sendApprovedDraft(db: SupabaseClient, draftId: string, adm
     received_at: now,
     body_text: text,
     contact_id: email.contact_id,
-    project_id: email.project_id,
+    project_id: projectId,
     direction: "outbound",
     analysis_status: "skipped",
     status: "handled",
@@ -95,7 +98,7 @@ export async function sendApprovedDraft(db: SupabaseClient, draftId: string, adm
   if (email.contact_id)
     await db.from("events").insert({
       contact_id: email.contact_id,
-      project_id: email.project_id,
+      project_id: projectId,
       event_type: "email.reply_sent",
       summary: `Replied to ${email.from_name ?? email.from_address}: ${String(d.subject).slice(0, 120)}`,
       details: {},

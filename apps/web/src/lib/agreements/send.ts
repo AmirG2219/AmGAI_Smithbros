@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { sendRecordedEmail } from "@/lib/email/record";
+import { replyToAddress, replyToConfigured } from "@/lib/email/reply-to";
 import { emailEnabled } from "@/lib/email/resend";
 import { plainEmail } from "@/lib/email/templates";
 import { logEvent } from "./build";
@@ -17,6 +18,8 @@ export type SendOutcome = "sent" | "blocked" | "skipped" | "failed" | "invalid";
 export function sendBlockers(templateNames: string[]): string[] {
   const out: string[] = [];
   if (!emailEnabled()) out.push("Email sending is not configured yet (Resend key, sender address and EMAIL_SENDING_ENABLED).");
+  if (!replyToConfigured())
+    out.push("The company inbox address (INBOX_ADDRESS) is not set or is not a valid email address, so the customer's reply would have nowhere to go.");
   if (templateNames.some((n) => /placeholder/i.test(n)))
     out.push("The approved template is still placeholder wording. Replace it with Smith Bros' approved legal text before sending to customers.");
   return out;
@@ -114,6 +117,7 @@ export async function sendAgreementsEmail(
         .insert(docs.map(({ doc }) => ({ message_id: messageId, agreement_document_id: doc!.id })));
       if (link.error) throw link.error;
     },
+    replyTo: replyToAddress(),
     attachments,
   });
 

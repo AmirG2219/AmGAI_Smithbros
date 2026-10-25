@@ -1,6 +1,6 @@
+import { customerEmailReady, replyToAddress } from "@/lib/email/reply-to";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { sendRecordedEmail } from "@/lib/email/record";
-import { emailEnabled } from "@/lib/email/resend";
 import { acknowledgmentEmail, customerEstimateEmail } from "@/lib/email/templates";
 import { sendApprovedEstimate, type SendResult } from "./estimate-approval";
 import { supabaseEstimateStore } from "./estimate-store";
@@ -40,7 +40,7 @@ export async function sendEstimateForProject(
   const r = await sendApprovedEstimate(supabaseEstimateStore(db), {
     estimateId: a.estimateId,
     projectId: a.projectId,
-    emailEnabled: emailEnabled(),
+    emailEnabled: customerEmailReady(),
     deliver: (e) => {
       const i = e.input_snapshot as { project_type?: string; material?: string; square_footage?: number | null };
       return sendRecordedEmail({
@@ -58,7 +58,7 @@ export async function sendEstimateForProject(
           bookingUrl: process.env.CALENDLY_URL || null,
         }),
         idempotencyKey: `estimate-email:${e.id}:1`,
-        replyTo: process.env.INBOX_ADDRESS || undefined,
+        replyTo: replyToAddress(),
       });
     },
   });
@@ -72,7 +72,7 @@ export async function sendEstimateForProject(
   } else if (r.code === "failed") {
     await event(db, c, a.projectId, a.actor, "estimate.send_failed", "Estimate email could not be sent", details);
   } else if (r.code === "email-off") {
-    await event(db, c, a.projectId, a.actor, "estimate.send_skipped", "Estimate not emailed: email sending is not configured", details);
+    await event(db, c, a.projectId, a.actor, "estimate.send_skipped", "Estimate not emailed: email sending is not fully configured (email settings and INBOX_ADDRESS)", details);
   } else if (r.code === "stale" || r.code === "placeholder") {
     await event(db, c, a.projectId, a.actor, "estimate.send_refused", r.code === "stale" ? "Estimate not emailed: a newer revision exists" : "Estimate not emailed: placeholder pricing is never sent", details);
   }
@@ -83,8 +83,8 @@ export async function sendEstimateForProject(
 export async function sendAcknowledgment(db: SupabaseClient, projectId: string) {
   const c = await loadContact(db, projectId);
   if (!c?.email) return;
-  if (!emailEnabled()) {
-    await event(db, c, projectId, null, "inquiry.acknowledgment_skipped", "Acknowledgment not emailed: email sending is not configured");
+  if (!customerEmailReady()) {
+    await event(db, c, projectId, null, "inquiry.acknowledgment_skipped", "Acknowledgment not emailed: email sending is not fully configured (email settings and INBOX_ADDRESS)");
     return;
   }
   const r = await sendRecordedEmail({
@@ -94,7 +94,7 @@ export async function sendAcknowledgment(db: SupabaseClient, projectId: string) 
     to: c.email,
     mail: acknowledgmentEmail({ firstName: c.firstName, bookingUrl: process.env.CALENDLY_URL || null }),
     idempotencyKey: `inquiry-ack:${projectId}`,
-    replyTo: process.env.INBOX_ADDRESS || undefined,
+    replyTo: replyToAddress(),
   });
   if (r.status === "sent") await event(db, c, projectId, null, "inquiry.acknowledgment_sent", "Acknowledgment (no price) emailed to the customer");
   else if (r.status === "skipped") await event(db, c, projectId, null, "inquiry.acknowledgment_skipped", `Acknowledgment not emailed: ${r.reason}`);

@@ -1,3 +1,4 @@
+import { explicitProjectId } from "@/lib/inbox/links";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadLeadForEmail } from "@/lib/leads/email-context";
 import { leadFacts } from "@/lib/leads/email-draft";
@@ -44,7 +45,8 @@ export async function createOrRefreshDraft(db: SupabaseClient, emailId: string, 
   if (e.direction !== "inbound") throw new Error("Only inbound emails can be replied to");
 
   const thread = await loadThread(db, e);
-  const lead = e.project_id ? await loadLeadForEmail(db, e.project_id) : null;
+  const projectId = explicitProjectId(e);
+  const lead = projectId ? await loadLeadForEmail(db, projectId) : null;
   const facts = lead ? leadFacts(lead.ctx) : null;
   const knowledge = await loadKnowledge(db);
   const learning = useAi ? await loadLearning(db) : undefined;

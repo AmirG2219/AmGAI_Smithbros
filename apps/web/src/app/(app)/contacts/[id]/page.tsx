@@ -2,7 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, FileText, Mail, Phone } from "lucide-react";
 import { sourceLabel } from "@/lib/contacts/sources";
+import { loadContactConversations } from "@/lib/inbox/links";
 import { createClient } from "@/lib/supabase/server";
+import { ConversationList } from "../../conversation-list";
 import { Card, PageHeader, Pill } from "../../ui";
 import { saveClientNotes, updateClient } from "./actions";
 import { EditClient } from "./edit-client";
@@ -39,7 +41,7 @@ export default async function ClientPage({
   const supabase = await createClient();
 
   // Everything loads in one parallel batch (one round trip to the database, not four).
-  const [{ data: c }, { data: jobs }, { data: events }, { data: mails }] = await Promise.all([
+  const [{ data: c }, { data: jobs }, { data: events }, { data: mails }, conversations] = await Promise.all([
     supabase
       .from("contacts")
       .select("id, first_name, last_name, email, phone, source, notes, created_at")
@@ -61,6 +63,8 @@ export default async function ClientPage({
       .eq("conversations.channel", "email")
       .order("created_at", { ascending: false })
       .limit(12),
+    // Inbox conversations from this client's address (runs as the signed-in user, so row security applies).
+    loadContactConversations(supabase, id),
   ]);
   if (!c) notFound();
 
@@ -240,6 +244,8 @@ export default async function ClientPage({
               </ul>
             )}
           </Card>
+
+          <ConversationList items={conversations} empty="No Inbox conversations from this client yet." />
         </div>
 
         <Card className="h-fit p-5">

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { replyToAddress } from "./reply-to";
 import { sendEmail } from "./resend";
 
 export type RecordedEmailResult =
@@ -36,6 +37,10 @@ export async function sendRecordedEmail(a: {
 
   if (!(await allowedByDemoMode(db, to)))
     return { status: "skipped", reason: "Recipient is not on the demo-mode allowlist" };
+
+  // Never send customer email that invites a reply without a monitored Reply-To: nothing is recorded or delivered.
+  const replyTo = a.replyTo ?? replyToAddress();
+  if (!replyTo) return { status: "failed", code: "reply_to_not_configured" };
 
   // Reuse the project's open service email thread, or start one.
   const type = a.conversationType ?? "service";
@@ -106,7 +111,7 @@ export async function sendRecordedEmail(a: {
     ...mail,
     idempotencyKey: a.idempotencyKey,
     headers: a.headers,
-    replyTo: a.replyTo,
+    replyTo,
     attachments: a.attachments,
   });
   const now = new Date().toISOString();
