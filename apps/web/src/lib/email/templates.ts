@@ -91,6 +91,24 @@ Smith Bros Floors`;
   return { subject, html, text };
 }
 
+// Automatic nudge for a website lead who has not booked yet. Fixed wording: no price, nothing promised beyond the inspection.
+export function bookingReminderEmail(i: { firstName: string; bookingUrl: string; reminder: 1 | 2 }) {
+  const last = i.reminder === 2;
+  const subject = last ? "Last note: book your free Smith Bros Floors inspection" : "Ready to book your free Smith Bros Floors inspection?";
+  const intro = last
+    ? "Just a last note about your flooring project. We would still love to take a look and give you an accurate quote, and the inspection is free."
+    : "Thanks again for your flooring inquiry. The next step is a free inspection, so we can see the space and give you an accurate quote.";
+  const optOut = "If you have already booked, or would rather not hear from us, just reply to this email and let us know.";
+  const html = shell(`
+<p>Hi ${esc(i.firstName)},</p>
+<p>${esc(intro)}</p>
+<p><a href="${esc(i.bookingUrl)}" style="display:inline-block;background:#211a16;color:#f5f0e8;padding:12px 22px;border-radius:8px;text-decoration:none">Book your inspection</a></p>
+<p style="color:#5a4d42;font-size:13px">${esc(optOut)}</p>
+<p style="color:#8a7b6c;font-size:13px">Smith Bros Floors</p>`);
+  const text = `Hi ${i.firstName},\n\n${intro}\n\nBook here: ${i.bookingUrl}\n\n${optOut}\n\nSmith Bros Floors`;
+  return { subject, html, text };
+}
+
 export type StaffAlertInput = {
   name: string;
   email: string;
