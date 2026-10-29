@@ -84,6 +84,7 @@ type Props = {
   listHref: string; // this tab and page, with no email open
   pageLinks: string[]; // the address of each page of this tab, in order
   initialSelected: string | null;
+  initialCompose?: boolean; // opened from the Dashboard's Compose Email action
   ai: boolean;
   connected: boolean;
   loadError: boolean;
@@ -336,7 +337,7 @@ export function InboxView(props: Props) {
   const [pending, start] = useTransition();
 
   const [selected, setSelected] = useState<string | null>(props.initialSelected);
-  const [composing, setComposing] = useState(false);
+  const [composing, setComposing] = useState(!!props.initialCompose);
   // What this session knows about each email, kept even after a refresh drops it from the list.
   const [known, setKnown] = useState<Map<string, EmailT>>(() => new Map(rows.map((r) => [r.id, r])));
   const [prevRows, setPrevRows] = useState(rows);

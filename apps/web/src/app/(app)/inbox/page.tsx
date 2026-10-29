@@ -22,7 +22,7 @@ const COLUMNS =
 
 type RawRow = Omit<EmailT, "contacts"> & { contacts: EmailT["contacts"] | EmailT["contacts"][] };
 
-export default async function InboxPage({ searchParams }: { searchParams: Promise<{ f?: string; p?: string; e?: string; q?: string }> }) {
+export default async function InboxPage({ searchParams }: { searchParams: Promise<{ f?: string; p?: string; e?: string; q?: string; compose?: string }> }) {
   const sp = await searchParams;
   const f = TABS.some((t) => t.key === sp.f) ? (sp.f as (typeof TABS)[number]["key"]) : "reply";
   const page = pageOf(sp.p);
@@ -94,7 +94,7 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
   return (
     <div>
       <InboxView
-        key={`${f}:${page}:${term}`}
+        key={`${f}:${page}:${term}:${sp.compose ?? ""}`}
         rows={rows}
         waiting={waiting}
         tab={searching ? "search" : f}
@@ -106,6 +106,7 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
         listHref={href(f, page, true)}
         pageLinks={Array.from({ length: pages }, (_, i) => href(f, i + 1, true))}
         initialSelected={selected}
+        initialCompose={sp.compose === "1"}
         ai={replyAiEnabled()}
         connected={gmailSendConfigured()}
         loadError={!!res?.error}
