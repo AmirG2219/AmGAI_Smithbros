@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BookUser, FileStack, LayoutGrid, Mail, Users } from "lucide-react";
+import type { NavCounts } from "@/lib/dashboard/overview";
 import { HelpButton, type HelpConfig } from "./help";
 import { navActive, navIdle, navLabel, navLink, navTip } from "./nav-style";
 
@@ -33,7 +34,11 @@ export function usePageTitle() {
   return items.find((i) => matches(path, i))?.label ?? "Dashboard";
 }
 
-export function Sidebar({ help, onNavigate }: { help: HelpConfig | null; onNavigate?: () => void }) {
+// Which count (if any) each entry shows. Amber means something is waiting for staff.
+const badgeKey: Record<string, keyof NavCounts> = { "/leads": "leads", "/inbox": "inbox", "/agreements": "agreements" };
+const badgeNote: Record<string, string> = { "/leads": "to review", "/inbox": "need a reply", "/agreements": "to action" };
+
+export function Sidebar({ help, counts, onNavigate }: { help: HelpConfig | null; counts: NavCounts | null; onNavigate?: () => void }) {
   const path = usePathname();
   return (
     <div className="flex h-full flex-col px-3 py-4">
@@ -44,6 +49,8 @@ export function Sidebar({ help, onNavigate }: { help: HelpConfig | null; onNavig
       <nav aria-label="Main" className="flex flex-col gap-1">
         {items.map((i) => {
           const active = matches(path, i);
+          const n = (badgeKey[i.href] && counts?.[badgeKey[i.href]]) || 0;
+          const note = n ? `${n} ${badgeNote[i.href]}` : "";
           return (
             <Link
               key={i.href}
@@ -56,7 +63,16 @@ export function Sidebar({ help, onNavigate }: { help: HelpConfig | null; onNavig
               {active && <span aria-hidden className="absolute inset-y-2 left-0 w-[3px] rounded-r bg-gold" />}
               <i.Icon size={18} strokeWidth={1.6} className="shrink-0" />
               <span className={navLabel}>{i.label}</span>
-              <span aria-hidden className={navTip}>{i.label}</span>
+              {n > 0 && (
+                <>
+                  <span className="sr-only">, {note}</span>
+                  <span aria-hidden className="ml-auto min-w-5 rounded-full bg-amber-500 px-1.5 text-center text-[11px] font-semibold leading-5 text-sidebar md:collapsed:hidden">
+                    {n > 99 ? "99+" : n}
+                  </span>
+                  <span aria-hidden className="absolute right-3 top-1.5 hidden h-2.5 w-2.5 rounded-full bg-amber-500 ring-2 ring-sidebar md:collapsed:block" />
+                </>
+              )}
+              <span aria-hidden className={navTip}>{n ? `${i.label} · ${note}` : i.label}</span>
             </Link>
           );
         })}

@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { loadNavCounts } from "@/lib/dashboard/overview";
 import { createClient } from "@/lib/supabase/server";
 import { getMe } from "@/lib/supabase/session";
 import { supportConfig } from "@/lib/support";
@@ -31,10 +32,13 @@ export default async function AppLayout({
     );
   }
 
+  // Badge counts for the sidebar. They refresh whenever a page or action revalidates; there is no background polling.
+  const counts = await loadNavCounts(await createClient()).catch(() => null);
+
   return (
     <>
       <script dangerouslySetInnerHTML={{ __html: preferenceScript }} />
-      <AppShell user={{ name: me.display_name, role: me.role }} help={help} signOut={signOut}>
+      <AppShell user={{ name: me.display_name, role: me.role }} help={help} counts={counts} signOut={signOut}>
         {children}
       </AppShell>
     </>

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Sun, X } from "lucide-react";
+import type { NavCounts } from "@/lib/dashboard/overview";
 import type { HelpConfig } from "./help";
 import { Sidebar, usePageTitle } from "./nav";
 
@@ -40,11 +41,13 @@ type User = { name: string; role: string };
 export function AppShell({
   user,
   help,
+  counts,
   signOut,
   children,
 }: {
   user: User;
   help: HelpConfig | null;
+  counts: NavCounts | null;
   signOut: () => Promise<void>;
   children: React.ReactNode;
 }) {
@@ -85,7 +88,7 @@ export function AppShell({
       <aside
         className="sticky top-0 hidden h-dvh shrink-0 border-r border-white/10 bg-sidebar text-sidebar-fg transition-[width] duration-200 md:block w-[248px] md:collapsed:w-[70px]"
       >
-        <Sidebar help={help} />
+        <Sidebar help={help} counts={counts} />
       </aside>
 
       {drawer && (
@@ -104,7 +107,7 @@ export function AppShell({
             >
               <X size={18} />
             </button>
-            <Sidebar help={help} onNavigate={() => setDrawer(false)} />
+            <Sidebar help={help} counts={counts} onNavigate={() => setDrawer(false)} />
           </aside>
         </div>
       )}

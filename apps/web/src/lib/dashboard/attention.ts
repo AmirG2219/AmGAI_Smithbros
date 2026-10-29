@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { findUnbookedLeads, findWaitingOnCustomers } from "@/lib/assistant/waiting";
+import { findUnbookedLeads, findWaitingOnCustomers, type UnbookedLead, type WaitingOnCustomer } from "@/lib/assistant/waiting";
 import { zonedToUtc } from "@/lib/timezone";
 
 const TZ = "America/Edmonton";
@@ -11,6 +11,8 @@ export type Attention = {
   today: { projectId: string; name: string; time: string }[];
   waiting: number;
   unbooked: number;
+  waitingList: WaitingOnCustomer[];
+  unbookedList: UnbookedLead[];
 };
 
 // Everything that needs the owner today, fetched in one parallel batch so the Overview stays quick.
@@ -57,5 +59,7 @@ export async function loadAttention(db: SupabaseClient): Promise<Attention> {
     }),
     waiting: waiting.length,
     unbooked: unbooked.length,
+    waitingList: waiting,
+    unbookedList: unbooked,
   };
 }
