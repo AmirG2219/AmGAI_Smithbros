@@ -77,3 +77,32 @@ test("a typed-in quote is never defaulted: price, tax rate, scope and confirmati
   const zero = parseQuoteEntry({ ...ok, taxRate: "0" });
   assert.ok(zero.ok && zero.value.tax === 0);
 });
+
+import { formatScope, scopeProblem, type ScopeArea } from "./vars";
+
+const svc = (description: string, quantity = "", unit: "sqft" | "lnft" | "count" | "fixed" = "fixed", materials = "", notes = "") => ({ description, quantity, unit, materials, notes });
+
+test("structured scope is written area by area, with quantities only where they apply", () => {
+  const areas: ScopeArea[] = [
+    { name: "Living Room", services: [svc("Hardwood installation", "250", "sqft", "White oak, matte finish"), svc("Remove existing carpet")] },
+    { name: "Staircase", services: [svc("Stair refinishing", "14", "count")] },
+    { name: "Empty", services: [svc("  ")] },
+  ];
+  assert.equal(
+    formatScope(areas, "Furniture moved by customer."),
+    "**Living Room**\n- Hardwood installation, 250 sq ft. Materials and finish: White oak, matte finish\n- Remove existing carpet\n\n**Staircase**\n- Stair refinishing, 14 units\n\n**Additional notes**\nFurniture moved by customer.",
+  );
+});
+
+test("scope entry problems are named, and fixed work takes no quantity", () => {
+  assert.equal(scopeProblem([{ name: "Hall", services: [svc("")] }]), "Add at least one service.");
+  assert.match(scopeProblem([{ name: "Hall", services: [svc("Repair", "abc", "sqft")] }]) ?? "", /quantity/);
+  assert.match(scopeProblem([{ name: "Hall", services: [svc("Repair", "5", "fixed")] }]) ?? "", /fixed work/);
+  assert.match(scopeProblem([{ name: "", services: [svc("Repair")] }, { name: "B", services: [svc("Sand")] }]) ?? "", /Name each area/);
+  assert.equal(scopeProblem([{ name: "", services: [svc("Repair")] }]), null);
+});
+
+test("a structured scope renders into the contract PDF text unchanged", () => {
+  const scope = formatScope([{ name: "Hall", services: [svc("Sanding", "80", "sqft")] }]);
+  assert.equal(fillTemplate("## Scope\n{{scope_of_work}}", { scope_of_work: scope }), "## Scope\n**Hall**\n- Sanding, 80 sq ft");
+});

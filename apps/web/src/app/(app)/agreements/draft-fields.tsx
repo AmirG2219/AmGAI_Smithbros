@@ -1,6 +1,7 @@
 import { Card } from "../ui";
 import { input, labelCls } from "./client";
 import { QuoteFields } from "./quote-fields";
+import { ScopeText } from "./scope-text";
 import { money, type DocType, type Inputs, type Quote } from "@/lib/agreements/vars";
 
 function Field({ name, title, hint, children }: { name: string; title: string; hint?: string; children: React.ReactNode }) {
@@ -20,17 +21,19 @@ export function DraftFields({
   quote,
   values,
   quoteEntry = false,
+  quoteKey = "",
 }: {
   types: DocType[];
   clientName: string;
   quote: Quote | null;
   values: Inputs;
   quoteEntry?: boolean; // contract with no accepted quote: let staff record the agreed price
+  quoteKey?: string; // keeps what staff typed for the agreed scope while they move between steps
 }) {
   const contract = types.includes("work_contract");
   return (
     <>
-      {contract && quoteEntry && !quote && <QuoteFields />}
+      {contract && quoteEntry && !quote && <QuoteFields saveKey={quoteKey} />}
       <Card className="p-4 sm:p-5">
         <p className="eyebrow mb-3">Filled in automatically</p>
         <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[10rem_1fr]">
@@ -43,7 +46,7 @@ export function DraftFields({
                 {money(quote.subtotal)} + {money(quote.tax)} tax = <strong>{money(quote.subtotal + quote.tax)}</strong>
               </dd>
               <dt className="text-muted">Scope of work</dt>
-              <dd className="whitespace-pre-line">{quote.scope}</dd>
+              <dd><ScopeText text={quote.scope} /></dd>
               {quote.exclusions && (
                 <>
                   <dt className="text-muted">Exclusions</dt>

@@ -131,14 +131,14 @@ export const phoneKey = (p: string | null | undefined) => {
   return d.length >= 7 ? d.slice(-10) : null;
 };
 
-export type NewProject = { project_type: string; site_address_line1: string; site_city: string | null; site_postal_code: string | null };
+export type NewProject = { project_type: string; site_address_line1: string; site_city: string | null; site_postal_code: string | null; project_name: string | null };
 
 export function parseProject(i: Record<string, unknown>): { ok: true; value: NewProject } | { ok: false; error: string } {
   const project_type = clean(i.project_type, 40);
   const site_address_line1 = clean(i.site_address_line1, 200);
   if (!(PROJECT_TYPE_CHOICES as readonly string[]).includes(project_type)) return { ok: false, error: "Choose a project type." };
   if (!site_address_line1) return { ok: false, error: "Enter the job site street address." };
-  return { ok: true, value: { project_type, site_address_line1, site_city: clean(i.site_city, 100) || null, site_postal_code: clean(i.site_postal_code, 20) || null } };
+  return { ok: true, value: { project_type, site_address_line1, site_city: clean(i.site_city, 100) || null, site_postal_code: clean(i.site_postal_code, 20) || null, project_name: clean(i.project_name, 120) || null } };
 }
 
 export type QuoteEntry = { scope: string; exclusions: string | null; subtotal: number; tax: number };
@@ -159,3 +159,59 @@ export function parseQuoteEntry(i: { scope?: unknown; exclusions?: unknown; subt
 
 export const stringVars = (snap: Snapshot): Record<string, string> =>
   Object.fromEntries(Object.entries(snap).filter(([k, v]) => !k.startsWith("_") && typeof v === "string")) as Record<string, string>;
+
+// ---- Structured scope of work (rooms / areas and their services) ----
+// Staff describe the agreed work as areas and services. It is written out as plain text into the same scope field an
+// accepted final quote already uses, and the approved template prints that text. Nothing is priced or calculated here.
+
+export const SCOPE_UNITS = [
+  { key: "sqft", label: "sq ft", text: "sq ft" },
+  { key: "lnft", label: "linear ft", text: "linear ft" },
+  { key: "count", label: "count", text: "units" },
+  { key: "fixed", label: "fixed work (no quantity)", text: "" },
+] as const;
+export type ScopeUnit = (typeof SCOPE_UNITS)[number]["key"];
+
+export type ScopeService = { description: string; quantity: string; unit: ScopeUnit; materials: string; notes: string };
+export type ScopeArea = { name: string; services: ScopeService[] };
+
+export const SCOPE_MAX = 4000; // the existing limit on a recorded scope (parseQuoteEntry)
+
+const one = (s: string) => s.replace(/\s+/g, " ").trim();
+
+function serviceLine(s: ScopeService) {
+  const unit = SCOPE_UNITS.find((u) => u.key === s.unit);
+  const qty = one(s.quantity);
+  const amount = unit && unit.text && qty ? `${qty} ${unit.text}` : "";
+  const parts = [`${one(s.description)}${amount ? `, ${amount}` : ""}`];
+  if (one(s.materials)) parts.push(`Materials and finish: ${one(s.materials)}`);
+  if (one(s.notes)) parts.push(`Notes: ${one(s.notes)}`);
+  return `- ${parts.join(". ")}`;
+}
+
+// "**Living Room**" (bold in the PDF) then one bullet per service, a blank line between areas, then any overall notes.
+export function formatScope(areas: ScopeArea[], notes = ""): string {
+  const blocks = areas
+    .map((a) => ({ name: one(a.name), services: a.services.filter((s) => one(s.description)) }))
+    .filter((a) => a.services.length)
+    .map((a) => [`**${a.name || "Work areas"}**`, ...a.services.map(serviceLine)].join("\n"));
+  const extra = notes.trim();
+  if (extra) blocks.push(`**Additional notes**\n${extra}`);
+  return blocks.join("\n\n");
+}
+
+// A message for the first thing wrong with the entered areas, or null when it is ready.
+export function scopeProblem(areas: ScopeArea[]): string | null {
+  for (const a of areas) {
+    const named = one(a.name);
+    for (const s of a.services) {
+      const has = one(s.description);
+      const qty = one(s.quantity);
+      if (!has && (qty || one(s.materials) || one(s.notes))) return `Describe the service for ${named || "each area"}.`;
+      if (qty && !(Number.isFinite(Number(qty)) && Number(qty) > 0)) return `The quantity for "${has}" must be a number above zero.`;
+      if (qty && s.unit === "fixed") return `"${has}" is fixed work, so leave the quantity empty or choose a unit.`;
+      if (has && !named && areas.length > 1) return "Name each area, or remove the empty ones.";
+    }
+  }
+  return areas.some((a) => a.services.some((s) => one(s.description))) ? null : "Add at least one service.";
+}

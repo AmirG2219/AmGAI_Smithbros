@@ -16,7 +16,8 @@ import {
 } from "@/lib/agreements/build";
 import { sendAgreementsEmail } from "@/lib/agreements/send";
 import { verifySigned } from "@/lib/agreements/review";
-import { EMPTY_INPUTS, parseQuoteEntry, type DocType, type Inputs } from "@/lib/agreements/vars";
+import { EMPTY_INPUTS, type Inputs } from "@/lib/agreements/vars";
+import { prepareReview, readAgreementForm, type ParsedForm, type Review } from "@/lib/agreements/prepare";
 
 const str = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
 
@@ -24,12 +25,6 @@ const readInputs = (f: FormData): Inputs => ({
   ...EMPTY_INPUTS,
   ...Object.fromEntries(Object.keys(EMPTY_INPUTS).map((k) => [k, str(f, k)])),
 });
-
-const DOCS: Record<string, DocType[]> = {
-  policy: ["policy_liability"],
-  contract: ["work_contract"],
-  both: ["policy_liability", "work_contract"],
-};
 
 // Runs a step; a UserError becomes a message on the given page, anything else a generic one (nothing is half-done silently).
 async function run(back: string, step: () => Promise<string | void>): Promise<never> {
@@ -46,27 +41,43 @@ async function run(back: string, step: () => Promise<string | void>): Promise<ne
 
 export async function createDraftsAction(formData: FormData) {
   const me = await requireAdmin();
-  const project = str(formData, "project");
-  const docs = DOCS[str(formData, "docs")] ?? [];
-  const uuid = (s: string) => (/^[0-9a-f-]{36}$/i.test(s) ? s : "");
-  const back = `/agreements/new?customer=${uuid(str(formData, "customer"))}&project=${uuid(project)}&docs=${DOCS[str(formData, "docs")] ? str(formData, "docs") : ""}`;
-  await run(back, async () => {
-    // Price and scope typed in by staff (only sent when the project has no accepted quote yet).
-    let newQuote;
-    if (formData.has("q_scope")) {
-      const q = parseQuoteEntry({
-        scope: formData.get("q_scope"),
-        exclusions: formData.get("q_exclusions"),
-        subtotal: formData.get("q_subtotal"),
-        taxRate: formData.get("q_tax_rate"),
-        confirmed: formData.get("q_confirm") === "on",
-      });
-      if (!q.ok) throw new UserError(q.error);
-      newQuote = q.value;
-    }
-    const ids = await createDrafts(createAdminClient(), me.id, project, docs, readInputs(formData), undefined, newQuote);
-    return `/agreements/${ids[0]}?notice=drafted`;
-  });
+  const p = readAgreementForm(formData);
+  const back = `/agreements/new?customer=${p.customer}&project=${p.project}&docs=${p.docsKey}`;
+  await run(back, async () => `/agreements/${(await createFrom(me.id, p))[0]}?notice=drafted`);
+}
+
+// Price and scope typed in by staff are only sent when the project has no accepted quote yet.
+async function createFrom(adminId: string, p: ParsedForm): Promise<string[]> {
+  if (p.quoteEntry && !p.quoteEntry.ok) throw new UserError(p.quoteEntry.error);
+  return createDrafts(createAdminClient(), adminId, p.project, p.docs, p.inputs, undefined, p.quoteEntry?.value);
+}
+
+export type ReviewState = { error: string } | { error?: undefined; review: Review } | null;
+
+// Final review: the server re-checks everything and sends back what would be created. Nothing is saved.
+export async function reviewAction(_prev: ReviewState, formData: FormData): Promise<ReviewState> {
+  await requireAdmin();
+  try {
+    return { review: (await prepareReview(createAdminClient(), readAgreementForm(formData))).review };
+  } catch (e) {
+    if (e instanceof UserError) return { error: e.message };
+    console.error("[agreements] review failed:", e);
+    return { error: "Something went wrong preparing the review. Nothing was created. Please try again." };
+  }
+}
+
+// Generate from the review. Errors come back to the review so nothing typed is lost.
+export async function generateAgreementsAction(_prev: { error: string } | null, formData: FormData): Promise<{ error: string } | null> {
+  const me = await requireAdmin();
+  let dest: string;
+  try {
+    dest = `/agreements/${(await createFrom(me.id, readAgreementForm(formData)))[0]}?notice=drafted`;
+  } catch (e) {
+    if (e instanceof UserError) return { error: e.message };
+    console.error("[agreements] create failed:", e);
+    return { error: "Something went wrong. Nothing was sent. Please try again." };
+  }
+  redirect(dest);
 }
 
 // Step 1 inline form: add a customer, or pick the existing one when the email or phone is already on file.
@@ -98,6 +109,24 @@ export async function createProjectAction(customerId: string, formData: FormData
     const id = await createManualProject(createAdminClient(), customerId, Object.fromEntries(formData));
     return `${base}&project=${id}`;
   });
+}
+
+export type ProjectFormState = { error: string } | null;
+
+// Step 2 inline form (client): errors come back to the form so what was typed is kept.
+export async function createProjectFormAction(customerId: string, _prev: ProjectFormState, formData: FormData): Promise<ProjectFormState> {
+  await requireAdmin();
+  if (!/^[0-9a-f-]{36}$/i.test(customerId)) redirect("/agreements/new");
+  let id: string;
+  try {
+    id = await createManualProject(createAdminClient(), customerId, Object.fromEntries(formData));
+  } catch (e) {
+    if (e instanceof UserError) return { error: e.message };
+    console.error("[agreements] add project failed:", e);
+    return { error: "Something went wrong. The project was not created. Please try again." };
+  }
+  const docs = str(formData, "docs");
+  redirect(`/agreements/new?customer=${customerId}&project=${id}${docs ? `&docs=${encodeURIComponent(docs)}` : ""}`);
 }
 
 export async function updateDraftAction(id: string, formData: FormData) {

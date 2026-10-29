@@ -405,9 +405,10 @@ export async function createManualProject(db: SupabaseClient, contactId: string,
   if (!p.ok) throw new UserError(p.error);
   const { data: c } = await db.from("contacts").select("id").eq("id", contactId).maybeSingle();
   if (!c) throw new UserError("That customer could not be found.");
+  const { project_name, ...columns } = p.value;
   const ins = await db
     .from("projects")
-    .insert({ contact_id: contactId, ...p.value, additional_answers: { origin: "agreement_builder" } })
+    .insert({ contact_id: contactId, ...columns, additional_answers: { origin: "agreement_builder", ...(project_name ? { project_name } : {}) } })
     .select("id")
     .single();
   if (ins.error) throw ins.error;

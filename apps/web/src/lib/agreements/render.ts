@@ -95,6 +95,10 @@ export async function renderAgreementPdf(opts: {
       draw(line.slice(3), sansBold, 11, { after: 2 });
     } else if (line.startsWith("# ")) {
       draw(line.slice(2), serif, 24, { after: 8 });
+    } else if (/^\*\*[^*].*\*\*$/.test(line)) {
+      // An area name written by the scope builder: **Living Room**
+      y -= 4;
+      draw(line.slice(2, -2), sansBold, 10.5, { after: 1 });
     } else if (line.startsWith("- ")) {
       draw(`•  ${line.slice(2)}`, sans, 10.5, { indent: 10 });
     } else if (/^PLACEHOLDER WORDING/.test(line)) {
