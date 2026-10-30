@@ -1,0 +1,45 @@
+{
+  "name": "Smith Bros - Daily lead booking reminders",
+  "nodes": [
+    {
+      "name": "Every morning at 9am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [240, 300],
+      "parameters": { "rule": { "interval": [{ "field": "days", "daysInterval": 1, "triggerAtHour": 9, "triggerAtMinute": 0 }] } }
+    },
+    {
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [480, 300],
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": false,
+        "assignments": { "assignments": [{ "id": "app-url", "name": "app_url", "value": "https://am-gai-smithbros.vercel.app", "type": "string" }] }
+      }
+    },
+    {
+      "name": "Send booking reminders",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [720, 300],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 30000,
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.app_url }}/api/automation/lead-reminders",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": { "timeout": 120000, "response": { "response": { "responseFormat": "json" } } }
+      },
+      "credentials": { "httpHeaderAuth": { "name": "Smith Bros App Secret" } }
+    }
+  ],
+  "connections": {
+    "Every morning at 9am": { "main": [[{ "node": "Config", "type": "main", "index": 0 }]] },
+    "Config": { "main": [[{ "node": "Send booking reminders", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

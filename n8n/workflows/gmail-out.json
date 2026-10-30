@@ -1,0 +1,165 @@
+{
+  "name": "Smith Bros - Gmail out (send approved reply)",
+  "nodes": [
+    {
+      "name": "Approved reply from the app",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.2,
+      "position": [240, 300],
+      "parameters": { "httpMethod": "POST", "path": "smithbros-gmail-send", "authentication": "headerAuth", "responseMode": "responseNode" },
+      "credentials": { "httpHeaderAuth": { "name": "Smith Bros App Secret" } }
+    },
+    {
+      "name": "Tidy the request",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [480, 300],
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": false,
+        "assignments": {
+          "assignments": [
+            { "id": "f1", "name": "key", "value": "={{ $json.headers[\"idempotency-key\"] || (\"draft:\" + $json.body.draft_id) }}", "type": "string" },
+            { "id": "f2", "name": "to", "value": "={{ $json.body.to }}", "type": "string" },
+            { "id": "f3", "name": "subject", "value": "={{ $json.body.subject }}", "type": "string" },
+            { "id": "f4", "name": "body_text", "value": "={{ $json.body.body_text }}", "type": "string" },
+            { "id": "f5", "name": "reply_to_message_id", "value": "={{ $json.body.reply_to_message_id || \"\" }}", "type": "string" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Was this already sent?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 300],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "language": "javaScript",
+        "jsCode": "const store = $getWorkflowStaticData('global');\nstore.sent = store.sent || {};\nconst prior = store.sent[$json.key];\nreturn { json: Object.assign({}, $json, { already_sent: !!prior, prior_id: prior ? prior.id : null, prior_thread: prior ? prior.threadId : null }) };"
+      }
+    },
+    {
+      "name": "Already sent?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [960, 300],
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "leftValue": "={{ $json.already_sent }}", "operator": { "type": "boolean", "operation": "true", "singleValue": true } }],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "name": "Tell the app (already sent earlier)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [1200, 140],
+      "parameters": { "respondWith": "json", "responseBody": "={{ { \"id\": $json.prior_id, \"threadId\": $json.prior_thread } }}", "options": { "responseCode": 200 } }
+    },
+    {
+      "name": "Reply to an existing email?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1200, 400],
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "leftValue": "={{ $json.reply_to_message_id }}", "operator": { "type": "string", "operation": "notEmpty", "singleValue": true } }],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "name": "Reply in the same thread",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [1440, 320],
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "resource": "message",
+        "operation": "reply",
+        "messageId": "={{ $json.reply_to_message_id }}",
+        "emailType": "text",
+        "message": "={{ $json.body_text }}",
+        "options": { "appendAttribution": false }
+      },
+      "credentials": { "gmailOAuth2": { "name": "Gmail account" } }
+    },
+    {
+      "name": "Send as a new email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [1440, 520],
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "text",
+        "message": "={{ $json.body_text }}",
+        "options": { "appendAttribution": false }
+      },
+      "credentials": { "gmailOAuth2": { "name": "Gmail account" } }
+    },
+    {
+      "name": "Remember it was sent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1680, 420],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "language": "javaScript",
+        "jsCode": "const store = $getWorkflowStaticData('global');\nstore.sent = store.sent || {};\nconst key = $('Tidy the request').item.json.key;\nstore.sent[key] = { id: $json.id, threadId: $json.threadId };\nconst keys = Object.keys(store.sent);\nif (keys.length > 500) { delete store.sent[keys[0]]; }\nreturn { json: { id: $json.id, threadId: $json.threadId } };"
+      }
+    },
+    {
+      "name": "Tell the app it was sent",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [1920, 420],
+      "parameters": { "respondWith": "json", "responseBody": "={{ { \"id\": $json.id, \"threadId\": $json.threadId } }}", "options": { "responseCode": 200 } }
+    },
+    {
+      "name": "Tell the app it failed",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [1680, 620],
+      "parameters": { "respondWith": "json", "responseBody": "={{ { \"error\": \"Gmail could not send this reply: \" + ($json.error && $json.error.message ? $json.error.message : \"unknown error\") } }}", "options": { "responseCode": 502 } }
+    }
+  ],
+  "connections": {
+    "Approved reply from the app": { "main": [[{ "node": "Tidy the request", "type": "main", "index": 0 }]] },
+    "Tidy the request": { "main": [[{ "node": "Was this already sent?", "type": "main", "index": 0 }]] },
+    "Was this already sent?": { "main": [[{ "node": "Already sent?", "type": "main", "index": 0 }]] },
+    "Already sent?": {
+      "main": [
+        [{ "node": "Tell the app (already sent earlier)", "type": "main", "index": 0 }],
+        [{ "node": "Reply to an existing email?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Reply to an existing email?": {
+      "main": [
+        [{ "node": "Reply in the same thread", "type": "main", "index": 0 }],
+        [{ "node": "Send as a new email", "type": "main", "index": 0 }]
+      ]
+    },
+    "Reply in the same thread": {
+      "main": [
+        [{ "node": "Remember it was sent", "type": "main", "index": 0 }],
+        [{ "node": "Tell the app it failed", "type": "main", "index": 0 }]
+      ]
+    },
+    "Send as a new email": {
+      "main": [
+        [{ "node": "Remember it was sent", "type": "main", "index": 0 }],
+        [{ "node": "Tell the app it failed", "type": "main", "index": 0 }]
+      ]
+    },
+    "Remember it was sent": { "main": [[{ "node": "Tell the app it was sent", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

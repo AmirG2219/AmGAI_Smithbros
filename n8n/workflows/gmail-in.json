@@ -1,0 +1,70 @@
+{
+  "name": "Smith Bros - Gmail in (new email to Inbox)",
+  "nodes": [
+    {
+      "name": "New tagged email",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.4,
+      "position": [240, 300],
+      "parameters": {
+        "pollTimes": { "item": [{ "mode": "everyX", "value": 2, "unit": "minutes" }] },
+        "authentication": "oAuth2",
+        "event": "messageReceived",
+        "simple": false,
+        "maxResults": 10,
+        "filters": { "q": "label:SmithBros-Test", "readStatus": "both", "includeSpamTrash": false, "includeDrafts": false },
+        "options": { "downloadAttachments": true, "dataPropertyAttachmentsPrefixName": "attachment_" }
+      },
+      "credentials": { "gmailOAuth2": { "name": "Gmail account" } }
+    },
+    {
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [480, 300],
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": true,
+        "assignments": { "assignments": [{ "id": "app-url", "name": "app_url", "value": "https://am-gai-smithbros.vercel.app", "type": "string" }] }
+      }
+    },
+    {
+      "name": "Shape for the app",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 300],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "language": "javaScript",
+        "jsCode": "const j = $json;\nconst from = (j.from && j.from.value && j.from.value[0]) || {};\nconst to = ((j.to && j.to.value) || []).map(function (x) { return x.address; });\nconst MAX_FILE = 3 * 1024 * 1024; // the app's host caps a request at about 4.5 MB\nconst attachments = [];\nconst bin = $input.item.binary || {};\nfor (const key of Object.keys(bin)) {\n  const b = bin[key];\n  const entry = { filename: b.fileName || key, content_type: b.mimeType || 'application/octet-stream', size: Number(b.fileSize) || 0 };\n  if (Number(b.fileSize) > 0 && Number(b.fileSize) <= MAX_FILE) {\n    const buf = await this.helpers.getBinaryDataBuffer($itemIndex, key);\n    entry.size = buf.length;\n    entry.content_base64 = buf.toString('base64');\n  }\n  attachments.push(entry);\n}\nreturn {\n  json: {\n    app_url: j.app_url,\n    payload: {\n      provider_message_id: j.id,\n      provider_thread_id: j.threadId || null,\n      from: from.name ? from.name + ' <' + from.address + '>' : from.address,\n      to: to,\n      subject: j.subject || '(no subject)',\n      received_at: new Date(j.date).toISOString(),\n      body_text: j.text || '',\n      body_html: j.html || null,\n      attachments: attachments\n    }\n  }\n};"
+      }
+    },
+    {
+      "name": "Send email to the Inbox",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [960, 300],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.app_url }}/api/inbound/email",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.payload }}",
+        "options": { "timeout": 60000, "response": { "response": { "responseFormat": "json" } } }
+      },
+      "credentials": { "httpHeaderAuth": { "name": "Smith Bros App Secret" } }
+    }
+  ],
+  "connections": {
+    "New tagged email": { "main": [[{ "node": "Config", "type": "main", "index": 0 }]] },
+    "Config": { "main": [[{ "node": "Shape for the app", "type": "main", "index": 0 }]] },
+    "Shape for the app": { "main": [[{ "node": "Send email to the Inbox", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}
